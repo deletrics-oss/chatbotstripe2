@@ -1,0 +1,172 @@
+{
+  "menu_principal_texto": "Olá! 👋 Sou o assistente virtual da Happy Diversões.\n*Se preferir, digite 5 a qualquer momento para falar direto com o Duda (isso pausará o assistente).*\n\nEstamos aqui para ajudar a levar as melhores máquinas arcade para o seu negócio ou residência!\n\nEscolha uma opção para começar:\n\n1️⃣ - Ver Produtos e Preços\n2️⃣ - Por que escolher a Happy?\n3️⃣ - Formas de Pagamento\n4️⃣ - Suporte Técnico\n5️⃣ - Solicitar Orçamento / Falar com Atendente",
+  "default_reply": "Desculpe, não entendi. Voltando ao menu principal:\n\nOlá! 👋 Sou o assistente virtual da Happy Diversões.\n*Se preferir, digite 5 a qualquer momento para falar direto com o Duda (isso pausará o assistente).*\n\nEstamos aqui para ajudar a levar as melhores máquinas arcade para o seu negócio ou residência!\n\nEscolha uma opção para começar:\n\n1️⃣ - Ver Produtos e Preços\n2️⃣ - Por que escolher a Happy?\n3️⃣ - Formas de Pagamento\n4️⃣ - Suporte Técnico\n5️⃣ - Solicitar Orçamento / Falar com Atendente",
+  "rules": [
+    {
+      "keywords": ["oi", "ola", "olá", "eai", "tudo bem", "menu", "inicio", "início", "start", "voltar", "sair", "0"],
+      "reply": "Olá! 👋 Sou o assistente virtual da Happy Diversões.\n*Se preferir, digite 5 a qualquer momento para falar direto com o Duda (isso pausará o assistente).*\n\nEstamos aqui para ajudar a levar as melhores máquinas arcade para o seu negócio ou residência!\n\nEscolha uma opção para começar:\n\n1️⃣ - Ver Produtos e Preços\n2️⃣ - Por que escolher a Happy?\n3️⃣ - Formas de Pagamento\n4️⃣ - Suporte Técnico\n5️⃣ - Solicitar Orçamento / Falar com Atendente",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["1", "produtos", "preços", "ver", "modelos", "catalogo"],
+      "reply": "Ótimo! Temos diversas máquinas para animar seu espaço. 🕹️\n\nEscolha uma opção para ver os detalhes (Ex: *P1*, *P2*):\n\nP1 - Fliperama Bartop (20\")\nP2 - Fliperama Bartop com Moedeiro\nP3 - Fliperama Residencial 32\"\nP4 - Fliperama Nintendo 42\"\nP5 - Máquina Subway Surfers\nP6 - Máquina Clássica Pac-Man\nP7 - Simulador de Corrida\nP8 - Karaokê + Jukebox\n\nDigite *5* para fazer um orçamento ou *0* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["2", "por que", "porque", "qualidade", "vantagens", "negocio"],
+      "reply": "Excelentes motivos para escolher a Happy Diversões! 💯\n\n🎯 *Alta Qualidade*\nEquipamentos robustos com MDF de 15mm, telas de 20 a 42 polegadas e placa zero delay.\n\n⚡ *Pronto para Usar*\nEntrega em 2 a 3 dias úteis com instalação e configuração completa.\n\n💰 *Preços Competitivos*\nOpções de pagamento em Pix (desconto) ou parcelado em até 10x.\n\n🏢 *Para Qualquer Negócio*\nIdeal para bares, restaurantes, buffets, barbearias, condomínios e chácaras.\n\nDigite *1* para ver os produtos ou *5* para solicitar um orçamento.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["3", "pagamento", "pagar", "parcelamento", "pix", "cartao"],
+      "reply": "Oferecemos flexibilidade para você:\n\n💰 *PIX:* Com desconto especial (valores já informados nos produtos).\n💳 *Parcelado:* Em até 10x sem juros no cartão de crédito.\n\nDigite *1* para ver os produtos ou *5* para falar com um atendente.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["4", "problema", "ajuda", "suporte", "nao funciona"],
+      "reply": "Entendo que precisa de ajuda. 🛠️\nPara qual equipamento você precisa de suporte?\n(Exemplo: Digite *S1*, *S2*...)\n\nS1 - Suporte para Fliperama / Bartop\nS2 - Suporte para Jukebox / Karaokê\nS3 - Suporte para Simulador de Corrida\nS4 - Outros problemas / Falar com Atendente\n\nPara voltar ao menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["5", "s4", "s1-9", "s2-5", "s3-4", "atendente", "falar com alguem", "humano", "falar com atendente", "orçamento", "solicitar", "duda"],
+      "reply": "Perfeito! Nossa equipe está pronta para montar um orçamento ou resolver seu problema técnico.\n\nUm especialista (o Duda!) já foi notificado e logo irá te responder aqui no WhatsApp: *11 94895-8191*.\n\n*O assistente virtual será pausado para não atrapalhar a conversa.* Para reativá-lo a qualquer momento, basta digitar *menu* ou *0*. 🙂",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["p1"],
+      "reply": "*Fliperama Bartop*\nFliperama compacta com 20 polegadas, MDF 15mm robusto.\n\n- *Pix:* R$ 2.100\n- *Parcelado:* 10x R$ 250\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "image_url": "https://www.happydiversoes.com.br/assets/images/pasted_file_Ba97JH_image.png",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p2"],
+      "reply": "*Fliperama Bartop com Moedeiro*\nFliperama com sistema de moedeiro integrado.\n\n- *Pix:* R$ 2.800\n- *Parcelado:* 10x R$ 320\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p3"],
+      "reply": "*Fliperama Residencial 32\"*\nFliperama residencial com tela de 32 polegadas.\n\n- *Pix:* R$ 3.500\n- *Parcelado:* 10x R$ 390\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p4"],
+      "reply": "*Fliperama Nintendo 42\"*\nGrande fliperama com logo Nintendo e 42 polegadas.\n\n- *Pix:* R$ 4.500\n- *Parcelado:* 10x R$ 490\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "image_url": "https://www.happydiversoes.com.br/assets/images/pasted_file_BqtquH_image.png",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p5"],
+      "reply": "*Subway Surfers*\nMáquina arcade com jogo Subway Surfers.\n\n- *Pix:* R$ 4.000\n- *Parcelado:* 10x R$ 450\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "image_url": "https://www.happydiversoes.com.br/assets/images/pasted_file_UMfVNt_image.png",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p6"],
+      "reply": "*Pac-Man*\nClássico Pac-Man em máquina arcade.\n\n- *Pix:* R$ 5.000\n- *Parcelado:* 10x R$ 580\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "image_url": null, // Coloque o link da imagem do Pac-Man aqui quando tiver
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p7"],
+      "reply": "*Corrida Simulador*\nSimulador de corrida com gráficos avançados.\n\n- *Pix:* R$ 6.000\n- *Parcelado:* 10x R$ 690\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "image_url": "https://www.happydiversoes.com.br/assets/images/pasted_file_jiBZxO_image.png",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p8"],
+      "reply": "*Karaokê + Jukebox*\nMáquina de karaokê com jukebox integrado.\n\n- *Pix:* R$ 4.000\n- *Parcelado:* 10x R$ 460\n\nPara ver fotos e mais detalhes, acesse:\nwww.happydiversoes.com.br\n\nDigite *5* para solicitar um orçamento ou *0* para voltar.",
+      "image_url": "https://www.happydiversoes.com.br/assets/images/pasted_file_RFlM4A_image.png",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1"],
+      "reply": "Certo, suporte para *Fliperama / Bartop*. Qual o problema?\n(Digite *S1- + número*. Ex: *S1-1*)\n\nS1-1 - Comando não funciona\nS1-2 - Comando andando sozinho\nS1-3 - Botões não funcionam\nS1-4 - Máquina não liga\nS1-5 - Como alterar configurações dos botões\nS1-6 - Como adicionar mais jogos\nS1-7 - Como instalar um controle adicional\nS1-8 - Guias e Manuais\nS1-9 - Outro problema (Falar com Atendente)\n\nPara voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s2"],
+      "reply": "Certo, suporte para *Jukebox / Karaokê*. Qual o problema?\n(Digite *S2- + número*. Ex: *S2-1*)\n\nS2-1 - Jukebox não liga\nS2-2 - Músicas/Vídeos não tocam\nS2-3 - Moedeiro/Ficheiro não funciona\nS2-4 - Como atualizar as músicas\nS2-5 - Outro problema (Falar com Atendente)\n\nPara voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s3"],
+      "reply": "Certo, suporte para *Simulador de Corrida*. Qual o problema?\n(Digite *S3- + número*. Ex: *S3-1*)\n\nS3-1 - Simulador não liga\nS3-2 - Volante/Pedais não respondem\nS3-3 - Jogo não inicia\nS3-4 - Outro problema (Falar com Atendente)\n\nPara voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-1"],
+      "reply": "Ok, para *comando que não funciona*:\n1. Verifique os fios na parte traseira, algum pode ter soltado.\n2. Com a máquina ligada, veja se a placa principal tem um LED aceso.\nSe não resolver, digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-2"],
+      "reply": "Certo, para *comando andando sozinho*: se for MECÂNICO, uma micro-switch pode estar desalinhada. Se for ÓPTICO, pode ser interferência de luz. Para ajuda, digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-3"],
+      "reply": "Ok, se os *botões não funcionam*, geralmente é um fio solto. Abra a tampa traseira com cuidado e verifique a conexão na placa 'zero delay'. Se não resolver, digite *5* para falar com um técnico. Para voltar, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-4"],
+      "reply": "Se a *máquina não liga*, primeiro teste a tomada e o cabo. Se suspeita da fonte, digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-5"],
+      "reply": "Para *alterar a configuração dos botões*, você geralmente deve fazer isso dentro de cada jogo. Para receber um guia, digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-6"],
+      "reply": "Sim, é possível *adicionar ou remover jogos*. *Atenção:* Se feito de forma incorreta, pode danificar o sistema. Para receber o tutorial, digite *5* para falar com um técnico. Para voltar, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-7"],
+      "reply": "Para *instalar e configurar um controle adicional*, siga nosso guia passo a passo. Digite *5* para falar com um técnico e receber o link. Para voltar, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s1-8"],
+      "reply": "Claro! Temos guias e manuais em texto e vídeo. Digite *5* para falar com um técnico e receber os links. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s2-1"],
+      "reply": "Se a *Jukebox não liga*, verifique o cabo de energia e se o disjuntor/tomada está funcionando. Se persistir, digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s2-2"],
+      "reply": "Se *músicas ou vídeos não tocam*, tente reiniciar a máquina. Pode ser um problema de software. Digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s2-3"],
+      "reply": "Se o *moedeiro/ficheiro não funciona*, verifique se há moedas/fichas presas e se o sensor está limpo. Para ajuda, digite *5*. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s2-4"],
+      "reply": "Para *atualizar as músicas*, você precisará de acesso ao sistema. Digite *5* para falar com um técnico e receber o guia correto. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s3-1"],
+      "reply": "Se o *Simulador não liga*, verifique todas as conexões de energia (PC, monitor, volante). Se persistir, digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s3-2"],
+      "reply": "Se o *Volante/Pedais não respondem*, verifique os cabos USB e reinicie o PC do simulador. Digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s3-3"],
+      "reply": "Se o *jogo não inicia*, tente reiniciar o PC do simulador. Pode ser um problema de software. Digite *5* para falar com um técnico. Para voltar ao menu de suporte, digite *4*. Para o menu principal, digite *0*.",
+      "pause_bot_after_reply": false
+    }
+  ]
+}
