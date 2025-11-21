@@ -16,6 +16,7 @@ import Chat from "@/pages/chat";
 import LogicEditor from "@/pages/logic-editor";
 import Billing from "@/pages/billing";
 import Settings from "@/pages/settings";
+import Broadcast from "@/pages/broadcast";
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -63,6 +64,7 @@ function AppContent() {
               <Route path="/devices" component={Devices} />
               <Route path="/chat" component={Chat} />
               <Route path="/logic" component={LogicEditor} />
+              <Route path="/broadcast" component={Broadcast} />
               <Route path="/billing" component={Billing} />
               <Route path="/settings" component={Settings} />
               <Route component={NotFound} />

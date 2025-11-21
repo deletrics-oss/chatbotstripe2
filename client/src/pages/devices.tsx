@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { WhatsappDevice } from "@shared/schema";
-import QRCode from "react-qr-code";
+import type { WhatsappDevice, LogicConfig } from "@shared/schema";
 
 export default function Devices() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -20,7 +20,11 @@ export default function Devices() {
 
   const { data: devices, isLoading } = useQuery<WhatsappDevice[]>({
     queryKey: ['/api/devices'],
-    refetchInterval: 3000, // Refetch every 3 seconds to update status and QR codes
+    refetchInterval: 3000,
+  });
+
+  const { data: logics } = useQuery<LogicConfig[]>({
+    queryKey: ['/api/logics'],
   });
 
   const addDeviceMutation = useMutation({
@@ -36,10 +40,10 @@ export default function Devices() {
         description: "Escaneie o QR Code para conectar",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Erro",
-        description: "Não foi possível adicionar o dispositivo",
+        description: error.message || "Não foi possível adicionar o dispositivo",
         variant: "destructive",
       });
     },
@@ -78,6 +82,35 @@ export default function Devices() {
     },
   });
 
+  const setLogicMutation = useMutation({
+    mutationFn: async ({ deviceId, logicId }: { deviceId: string; logicId: string | null }) => {
+      return await apiRequest("POST", `/api/devices/${deviceId}/set-logic`, { logicId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
+      toast({
+        title: "Lógica atualizada",
+        description: "A lógica do bot foi atualizada com sucesso",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar a lógica",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const togglePauseMutation = useMutation({
+    mutationFn: async (deviceId: string) => {
+      return await apiRequest("POST", `/api/devices/${deviceId}/toggle-pause`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       connected: { label: "Conectado", variant: "default" as const, color: "bg-status-online" },
@@ -86,6 +119,12 @@ export default function Devices() {
       disconnected: { label: "Desconectado", variant: "secondary" as const, color: "bg-status-offline" },
     };
     return statusMap[status as keyof typeof statusMap] || statusMap.disconnected;
+  };
+
+  const getActiveLogicName = (device: WhatsappDevice) => {
+    if (!device.activeLogicId) return null;
+    const logic = logics?.find(l => l.id === device.activeLogicId);
+    return logic?.name || null;
   };
 
   return (
@@ -160,6 +199,8 @@ export default function Devices() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {devices.map((device) => {
             const statusInfo = getStatusBadge(device.connectionStatus);
+            const activeLogicName = getActiveLogicName(device);
+            
             return (
               <Card key={device.id} data-testid={`device-card-${device.id}`}>
                 <CardHeader>
@@ -215,7 +256,68 @@ export default function Devices() {
                     </div>
                   )}
 
+                  {/* Logic Selector */}
+                  <div className="space-y-2">
+                    <Label htmlFor={`logic-${device.id}`} className="text-xs font-medium flex items-center gap-1">
+                      <FileJson className="w-3 h-3" />
+                      Lógica Ativa
+                    </Label>
+                    <Select
+                      value={device.activeLogicId || "none"}
+                      onValueChange={(value) => {
+                        setLogicMutation.mutate({
+                          deviceId: device.id,
+                          logicId: value === "none" ? null : value,
+                        });
+                      }}
+                    >
+                      <SelectTrigger id={`logic-${device.id}`} className="w-full" data-testid={`select-logic-${device.id}`}>
+                        <SelectValue placeholder="Selecione uma lógica" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {logics?.map((logic) => (
+                          <SelectItem key={logic.id} value={logic.id}>
+                            {logic.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {activeLogicName && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                        <Badge variant={device.isPaused ? "secondary" : "default"} className="text-xs">
+                          {device.isPaused ? "Pausado" : "Ativo"}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground truncate flex-1">
+                          {activeLogicName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex gap-2">
+                    {device.activeLogicId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => togglePauseMutation.mutate(device.id)}
+                        disabled={togglePauseMutation.isPending}
+                        data-testid={`button-pause-${device.id}`}
+                      >
+                        {device.isPaused ? (
+                          <>
+                            <Play className="w-4 h-4 mr-2" />
+                            Retomar
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="w-4 h-4 mr-2" />
+                            Pausar
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

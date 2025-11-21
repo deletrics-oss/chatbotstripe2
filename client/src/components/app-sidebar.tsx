@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Smartphone, FileJson, CreditCard, Settings, LogOut } from "lucide-react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -35,6 +35,11 @@ const menuItems = [
     title: "Lógicas",
     url: "/logic",
     icon: FileJson,
+  },
+  {
+    title: "Disparo em Massa",
+    url: "/broadcast",
+    icon: Send,
   },
   {
     title: "Planos",
@@ -116,14 +121,22 @@ export function AppSidebar() {
               </Badge>
             )}
 
-            <a
-              href="/api/logout"
+            <button
+              onClick={async () => {
+                try {
+                  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                  window.location.href = '/login';
+                } catch (error) {
+                  console.error('Logout error:', error);
+                  window.location.href = '/login';
+                }
+              }}
               className="flex items-center gap-2 w-full p-2 text-sm rounded-lg hover-elevate active-elevate-2 text-destructive"
               data-testid="button-logout"
             >
               <LogOut className="w-4 h-4" />
               <span>Sair</span>
-            </a>
+            </button>
           </div>
         )}
       </SidebarFooter>

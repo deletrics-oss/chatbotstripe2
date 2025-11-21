@@ -2,6 +2,7 @@ import pkg from "whatsapp-web.js";
 const { Client, LocalAuth, MessageMedia } = pkg;
 import qrcode from "qrcode";
 import { storage } from "./storage";
+import { executeLogic, type LogicJson } from "./logicExecutor";
 
 interface WhatsAppSession {
   client: Client;
@@ -142,17 +143,47 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
         conversationId = existingConversation.id;
       }
 
-      // Store the message
+      // Store the incoming message
       await storage.createMessage({
         conversationId,
         content: message.body,
         direction: 'incoming',
-        messageType: 'text',
-        status: 'delivered',
+        isFromBot: false,
         timestamp: new Date()
       });
 
-      // TODO: Process message with bot logic and respond if needed
+      // Process message with bot logic and respond if needed
+      if (device.activeLogicId && !device.isPaused) {
+        try {
+          const logic = await storage.getLogic(device.activeLogicId);
+          
+          if (logic && logic.isActive) {
+            const result = executeLogic(message.body, logic.logicJson as LogicJson);
+            
+            // Send auto-response
+            await message.reply(result.reply);
+            
+            // Store bot response
+            await storage.createMessage({
+              conversationId,
+              content: result.reply,
+              direction: 'outgoing',
+              isFromBot: true,
+              timestamp: new Date()
+            });
+            
+            // Pause bot if logic says so
+            if (result.shouldPause) {
+              await storage.updateDevice(deviceId, {
+                isPaused: true
+              });
+              console.log(`[WhatsApp] Bot paused for device ${deviceId} after reply`);
+            }
+          }
+        } catch (botError) {
+          console.error(`[WhatsApp] Error executing bot logic for device ${deviceId}:`, botError);
+        }
+      }
       
     } catch (error) {
       console.error(`[WhatsApp] Error handling message for device ${deviceId}:`, error);
@@ -244,4 +275,35 @@ export function getAllSessions(): Array<{ deviceId: string; status: string }> {
     deviceId,
     status: session.status
   }));
+}
+
+export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
+  const session = sessions.get(deviceId);
+  
+  if (!session || session.status !== 'READY') {
+    console.error(`[WhatsApp] Cannot get contacts - session not ready for device: ${deviceId}`);
+    return [];
+  }
+
+  try {
+    const chats = await session.client.getChats();
+    
+    const contacts = await Promise.all(
+      chats.map(async (chat) => {
+        const contact = await chat.getContact();
+        return {
+          id: chat.id._serialized,
+          name: contact.name || contact.pushname || chat.name || chat.id.user,
+          phone: chat.id._serialized,
+          isGroup: chat.isGroup,
+        };
+      })
+    );
+    
+    console.log(`[WhatsApp] Found ${contacts.length} contacts for device ${deviceId}`);
+    return contacts;
+  } catch (error) {
+    console.error(`[WhatsApp] Error getting contacts:`, error);
+    return [];
+  }
 }

@@ -75,6 +75,8 @@ export const whatsappDevices = pgTable("whatsapp_devices", {
   connectionStatus: connectionStatusEnum("connection_status").notNull().default('disconnected'),
   qrCode: text("qr_code"),
   lastConnectedAt: timestamp("last_connected_at"),
+  activeLogicId: varchar("active_logic_id"),
+  isPaused: boolean("is_paused").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -180,6 +182,54 @@ export const insertKnowledgeBaseSchema = createInsertSchema(knowledgeBase).omit(
 
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
 export type InsertKnowledgeBase = z.infer<typeof insertKnowledgeBaseSchema>;
+
+// ============ BROADCASTS (MASS MESSAGING) ============
+
+export const broadcastStatusEnum = pgEnum('broadcast_status', ['pending', 'running', 'paused', 'completed', 'failed']);
+
+export const broadcasts = pgTable("broadcasts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: varchar("device_id").notNull().references(() => whatsappDevices.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  message: text("message").notNull(),
+  status: broadcastStatusEnum("status").notNull().default('pending'),
+  totalContacts: integer("total_contacts").notNull().default(0),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertBroadcastSchema = createInsertSchema(broadcasts).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+});
+
+export type Broadcast = typeof broadcasts.$inferSelect;
+export type InsertBroadcast = z.infer<typeof insertBroadcastSchema>;
+
+export const broadcastContacts = pgTable("broadcast_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  broadcastId: varchar("broadcast_id").notNull().references(() => broadcasts.id, { onDelete: 'cascade' }),
+  contactName: varchar("contact_name").notNull(),
+  contactPhone: varchar("contact_phone").notNull(),
+  status: varchar("status").notNull().default('pending'), // pending, sent, failed
+  sentAt: timestamp("sent_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBroadcastContactSchema = createInsertSchema(broadcastContacts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BroadcastContact = typeof broadcastContacts.$inferSelect;
+export type InsertBroadcastContact = z.infer<typeof insertBroadcastContactSchema>;
 
 // ============ RELATIONS ============
 

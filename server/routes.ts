@@ -8,6 +8,7 @@ import { setupAuth, isAuthenticated } from "./localAuth";
 import { insertWhatsappDeviceSchema, insertConversationSchema, insertMessageSchema, insertLogicConfigSchema } from "@shared/schema";
 import { z } from "zod";
 import * as whatsappManager from "./whatsappManager";
+import { processBroadcast } from "./broadcastProcessor";
 
 // Initialize Stripe (only if key is provided)
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -173,6 +174,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting device:", error);
       res.status(500).json({ message: "Failed to delete device" });
+    }
+  });
+
+  app.post('/api/devices/:id/set-logic', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const device = await storage.getDevice(req.params.id);
+      
+      if (!device) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      
+      if (device.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized: You don't own this device" });
+      }
+
+      const { logicId } = req.body;
+      
+      // Verify logic ownership if logicId is provided
+      if (logicId) {
+        const logic = await storage.getLogic(logicId);
+        if (!logic || logic.userId !== userId) {
+          return res.status(403).json({ message: "Logic not found or not owned by user" });
+        }
+      }
+
+      const updated = await storage.updateDevice(req.params.id, {
+        activeLogicId: logicId || null,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error setting logic:", error);
+      res.status(500).json({ message: "Failed to set logic" });
+    }
+  });
+
+  app.post('/api/devices/:id/toggle-pause', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const device = await storage.getDevice(req.params.id);
+      
+      if (!device) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      
+      if (device.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized: You don't own this device" });
+      }
+
+      const updated = await storage.updateDevice(req.params.id, {
+        isPaused: !device.isPaused,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling pause:", error);
+      res.status(500).json({ message: "Failed to toggle pause" });
     }
   });
 
@@ -584,6 +643,198 @@ Responda APENAS com JSON válido, sem explicações adicionais.`;
       }
     });
   }
+
+  // ============ BROADCAST (MASS MESSAGING) ROUTES ============
+  
+  // Get all broadcasts for user
+  app.get('/api/broadcasts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const broadcasts = await storage.getBroadcasts(userId);
+      res.json(broadcasts);
+    } catch (error) {
+      console.error("Error fetching broadcasts:", error);
+      res.status(500).json({ message: "Failed to fetch broadcasts" });
+    }
+  });
+
+  // Create new broadcast
+  app.post('/api/broadcasts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, deviceId, message, contacts } = req.body;
+
+      if (!name || !deviceId || !message || !contacts || contacts.length === 0) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Verify device ownership
+      const device = await storage.getDevice(deviceId);
+      if (!device || device.userId !== userId) {
+        return res.status(403).json({ message: "Device not found or unauthorized" });
+      }
+
+      // Create broadcast
+      const broadcast = await storage.createBroadcast({
+        userId,
+        deviceId,
+        name,
+        message,
+        status: 'pending',
+        totalContacts: contacts.length,
+        sentCount: 0,
+        failedCount: 0,
+      });
+
+      // Create broadcast contacts
+      for (const phone of contacts) {
+        await storage.createBroadcastContact({
+          broadcastId: broadcast.id,
+          contactName: phone,
+          contactPhone: phone,
+          status: 'pending',
+        });
+      }
+
+      res.json(broadcast);
+    } catch (error) {
+      console.error("Error creating broadcast:", error);
+      res.status(500).json({ message: "Failed to create broadcast" });
+    }
+  });
+
+  // Start broadcast
+  app.post('/api/broadcasts/:id/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const broadcast = await storage.getBroadcast(req.params.id);
+
+      if (!broadcast || broadcast.userId !== userId) {
+        return res.status(404).json({ message: "Broadcast not found" });
+      }
+
+      // Update status to running
+      const updated = await storage.updateBroadcast(req.params.id, {
+        status: 'running',
+        startedAt: new Date(),
+      });
+
+      // Start sending messages in background
+      processBroadcast(req.params.id);
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error starting broadcast:", error);
+      res.status(500).json({ message: "Failed to start broadcast" });
+    }
+  });
+
+  // Pause broadcast
+  app.post('/api/broadcasts/:id/pause', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const broadcast = await storage.getBroadcast(req.params.id);
+
+      if (!broadcast || broadcast.userId !== userId) {
+        return res.status(404).json({ message: "Broadcast not found" });
+      }
+
+      const updated = await storage.updateBroadcast(req.params.id, {
+        status: 'paused',
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error pausing broadcast:", error);
+      res.status(500).json({ message: "Failed to pause broadcast" });
+    }
+  });
+
+  // Delete broadcast
+  app.delete('/api/broadcasts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const broadcast = await storage.getBroadcast(req.params.id);
+
+      if (!broadcast || broadcast.userId !== userId) {
+        return res.status(404).json({ message: "Broadcast not found" });
+      }
+
+      if (broadcast.status === 'running') {
+        return res.status(400).json({ message: "Cannot delete running broadcast. Pause it first." });
+      }
+
+      await storage.deleteBroadcast(req.params.id);
+      res.json({ message: "Broadcast deleted" });
+    } catch (error) {
+      console.error("Error deleting broadcast:", error);
+      res.status(500).json({ message: "Failed to delete broadcast" });
+    }
+  });
+
+  // Get WhatsApp contacts from device
+  app.get('/api/whatsapp/contacts/:deviceId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const device = await storage.getDevice(req.params.deviceId);
+
+      if (!device || device.userId !== userId) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+
+      if (device.connectionStatus !== 'connected') {
+        return res.status(400).json({ message: "Device not connected" });
+      }
+
+      // Get contacts from WhatsApp
+      const contacts = await whatsappManager.getWhatsAppContacts(req.params.deviceId);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      res.status(500).json({ message: "Failed to fetch contacts" });
+    }
+  });
+
+  // Generate message with AI
+  app.post('/api/ai/generate-message', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      if (!ai) {
+        return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
+      }
+
+      const { prompt } = req.body;
+
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const systemPrompt = `Você é um assistente que cria mensagens profissionais para WhatsApp.
+Crie uma mensagem curta, clara e atraente baseada no prompt do usuário.
+A mensagem deve ser amigável e adequada para envio em massa.
+Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        config: {
+          systemInstruction: systemPrompt,
+        },
+        contents: prompt,
+      });
+
+      const generatedMessage = response.text || "";
+      res.json({ message: generatedMessage });
+    } catch (error) {
+      console.error("Error generating message with AI:", error);
+      res.status(500).json({ message: "Failed to generate message" });
+    }
+  });
 
   // ============ WEBSOCKET FOR REAL-TIME CHAT ============
   const httpServer = createServer(app);

@@ -1,0 +1,143 @@
+{
+  "rules": [
+    {
+      "keywords": [
+        "oi",
+        "ola",
+        "olá",
+        "a paz do senhor",
+        "bom dia",
+        "boa tarde",
+        "boa noite",
+        "paz",
+        "saudacao",
+        "saudação",
+        "menu",
+        "ajuda",
+        "inicio",
+        "início",
+        "start",
+        "voltar",
+        "sair",
+        "opcoes",
+        "opções"
+      ],
+      "reply": "Olá! Sou o Assistente Virtual do Suporte de TI da IIGD. Estou aqui para te ajudar a resolver problemas técnicos de forma rápida.\n\nPor favor, escolha uma das opções abaixo:\n\n1 - *Abrir Chamado Técnico* (Computador, Impressora, etc.)\n2 - *Suporte para CFTV* (Câmeras)\n3 - *Solicitar Biometria* (Cadastro, Atualização, Remoção)\n4 - *Problemas com Telefonia* / *Ramais*\n5 - *Falar Diretamente com Operador de TI*",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": [
+        "1",
+        "abrir chamado",
+        "chamado tecnico",
+        "computador",
+        "impressora",
+        "internet lenta",
+        "pc nao liga",
+        "problema no pc",
+        "problema pc",
+        "computador travou"
+      ],
+      "reply": "Ok, vamos iniciar seu chamado! Por favor, me informe seu *Nome Completo*.",
+      "set_conversation_state": "awaiting_name",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": [
+        "2",
+        "suporte cftv",
+        "cftv",
+        "cameras",
+        "câmeras",
+        "seguranca",
+        "segurança",
+        "gravacoes",
+        "gravações"
+      ],
+      "reply": "Entendido! Sua solicitação de suporte para *CFTV (Câmeras)* foi registrada e encaminhada.\n\nUm especialista da área entrará em contato por aqui em breve para entender melhor o problema e auxiliar. O assistente virtual será pausado agora para não atrapalhar a comunicação.\n\n*Para reativá-lo e ver o menu novamente, digite 'menu'. Se precisar falar com um operador imediatamente, digite '5'.*",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": [
+        "3",
+        "solicitar biometria",
+        "biometria",
+        "cadastro digital",
+        "acesso biometrico",
+        "atualizar biometria",
+        "remover biometria"
+      ],
+      "reply": "Para *cadastro, atualização ou remoção de biometria*, por favor, compareça diretamente ao *2º andar do prédio principal da IIGD*.\n\nNossa equipe de TI estará lá para realizar o procedimento rapidamente.\n\n*Se precisar de mais alguma ajuda, digite 'menu' ou a '5' para falar diretamente com um operador de TI.*",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": [
+        "4",
+        "problemas telefonia",
+        "ramais",
+        "telefone",
+        "linha telefonica",
+        "interfone",
+        "problemas de ligação",
+        "numero de ramal",
+        "não sei o ramal",
+        "nao sei o ramal"
+      ],
+      "reply": "Para problemas relacionados a *telefones, ramais ou linhas telefônicas*, por favor, ligue diretamente para o setor de Telefonia para um atendimento especializado.\n\nO número para contato é: *(11) 2126-6873*.\n\n*Caso precise de um ramal específico, ou não saiba qual ramal ligar, aqui estão alguns úteis:*\n\t- *229:* Serviços Gerais\n\t- *230:* Refrigeração\n\t- *226:* Elétrica\n\t- *228:* CFTV\n\t- *6873:* Informática (Suporte)\n\t- *227:* Jeremias\n\t- *249:* Elex (Apoio técnico)\n\t- *6886:* Telecomunicações\n\n*Comandos úteis de telefone:*\n\t- ***2:** Transfere ligação\n\t- ***8#:** Captura ligação\n\t- ***65:** Ouve o número do seu ramal\n\n*Se precisar de mais alguma ajuda, digite 'menu' ou a '5' para falar diretamente com um operador de TI.*",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": [
+        "5",
+        "falar com operador",
+        "suporte humano",
+        "ligar para o ti",
+        "contato do ti",
+        "suporte ti"
+      ],
+      "reply": "Entendido! Você solicitou falar com um operador de TI. Nossos técnicos já foram notificados e logo entrarão em contato por aqui para te dar o suporte necessário. Os técnicos disponíveis para atendimento presencial ou remoto são **Luis, Alessandro e Bruno**, e eles estão a disposição **da manhã até as 20h**.\n\nO telefone de contato direto para o setor de TI é *(11) 2126-6873*.\n\n*Aguarde o contato de um técnico! O assistente virtual será pausado agora para não atrapalhar a conversa. Deixe sua mensagem, e o técnico disponível responderá o mais breve possível. Para reativá-lo a qualquer momento, basta digitar 'menu'.*",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": [
+        "reiniciar computador",
+        "pc lento",
+        "computador lento",
+        "travando",
+        "erro pc",
+        "erro no computador",
+        "ja reiniciei",
+        "reiniciei"
+      ],
+      "reply": "Uma dica importante que resolve muitos problemas: antes de qualquer coisa, tente reiniciar o seu computador. Este é sempre o primeiro passo recomendado e muitas vezes já soluciona a questão!\n\nSe você *já tentou reiniciar* e o problema persiste, podemos seguir com a abertura do chamado. Se sim, digite '1' ou 'Abrir Chamado Técnico' para iniciar.\n\n*Se precisar de mais alguma ajuda, digite 'menu' ou a '5' para falar diretamente com um operador de TI.*",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": [
+        "anydesk",
+        "teamviewer",
+        "acesso remoto",
+        "id remoto",
+        "como abro anydesk",
+        "como pego meu id",
+        "nao sei onde fica meu id",
+        "não sei onde fica meu id",
+        "nao tenho o programa",
+        "não tenho o programa",
+        "meu id",
+        "o id do anydesk"
+      ],
+      "reply": "É bem simples para encontrar o seu ID:\n1. No seu computador, clique no menu Iniciar (geralmente o ícone do Windows) e digite 'AnyDesk' ou 'TeamViewer' para abrir o programa. (Se você não tiver instalado, pode baixá-lo gratuitamente nos sites oficiais AnyDesk.com ou TeamViewer.com).\n2. Na tela inicial do programa, procure por um número que geralmente está em destaque, chamado 'Este dispositivo' ou 'Sua ID'.\n3. Por favor, nos envie uma foto dessa tela ou digite esse número aqui.\n\n*Se precisar de mais alguma ajuda, digite 'menu' ou a '5' para falar diretamente com um operador de TI.*",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": [
+        "__confirmar_chamado_finalizado__"
+      ],
+      "reply": "*Chamado Recebido!* Seus dados foram encaminhados aos nossos técnicos. Eles entrarão em contato em breve para dar seguimento ao seu chamado. O assistente virtual será pausado agora para não atrapalhar a conversa.\n\n*Para reativá-lo e ver o menu novamente, digite 'menu'. Se precisar falar com um operador imediatamente, deixe sua mensagem, e o técnico disponível responderá o mais breve possível.*",
+      "pause_bot_after_reply": true
+    }
+  ],
+  "default_reply": "Não entendi sua mensagem. Por favor, escolha um número de 1 a 5, digite 'menu' para ver as opções novamente, ou '5' para falar diretamente com um operador de TI.",
+  "pause_bot_after_reply": false
+}
