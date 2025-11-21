@@ -8,6 +8,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
+import Register from "@/pages/register";
+import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Devices from "@/pages/devices";
 import Chat from "@/pages/chat";
@@ -35,8 +37,16 @@ function AppContent() {
     );
   }
 
+  // Public routes (not authenticated)
   if (!isAuthenticated) {
-    return <Landing />;
+    return (
+      <Switch>
+        <Route path="/register" component={Register} />
+        <Route path="/login" component={Login} />
+        <Route path="/" component={Landing} />
+        <Route component={Landing} />
+      </Switch>
+    );
   }
 
   return (

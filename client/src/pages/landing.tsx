@@ -15,8 +15,8 @@ export default function Landing() {
             Dashboard de Gerenciamento de Chatbot WhatsApp com IA
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Button size="lg" asChild data-testid="button-login">
-              <a href="/api/login">
+            <Button size="lg" asChild data-testid="button-start-trial">
+              <a href="/register">
                 Começar Agora
               </a>
             </Button>
@@ -88,17 +88,17 @@ export default function Landing() {
               <CardHeader>
                 <CardTitle>Free Trial</CardTitle>
                 <div className="text-3xl font-bold">Grátis</div>
-                <CardDescription>1 mês de acesso completo</CardDescription>
+                <CardDescription>30 dias de acesso</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Todas as funcionalidades</span>
+                    <span className="text-sm">1 sessão/dispositivo WhatsApp</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">1 dispositivo WhatsApp</span>
+                    <span className="text-sm">Lógicas JSON estáticas</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
@@ -106,11 +106,11 @@ export default function Landing() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">IA Gemini básica</span>
+                    <span className="text-sm">Suporte por email</span>
                   </li>
                 </ul>
-                <Button className="w-full" variant="outline" asChild>
-                  <a href="/api/login">Começar Trial</a>
+                <Button className="w-full" variant="outline" asChild data-testid="button-free-trial">
+                  <a href="/register">Começar Trial</a>
                 </Button>
               </CardContent>
             </Card>
@@ -120,17 +120,21 @@ export default function Landing() {
               <CardHeader>
                 <CardTitle>Básico</CardTitle>
                 <div className="text-3xl font-bold">R$ 29,90<span className="text-base font-normal">/mês</span></div>
-                <CardDescription>Para pequenos negócios</CardDescription>
+                <CardDescription>Bot estático profissional</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">2 dispositivos WhatsApp</span>
+                    <span className="text-sm">1 sessão/dispositivo WhatsApp</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Editor de lógicas JSON</span>
+                    <span className="text-sm">Lógicas JSON estáticas</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span className="text-sm">Editor de lógicas JSON completo</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
@@ -141,8 +145,8 @@ export default function Landing() {
                     <span className="text-sm">Templates prontos</span>
                   </li>
                 </ul>
-                <Button className="w-full" asChild>
-                  <a href="/api/login">Assinar Agora</a>
+                <Button className="w-full" asChild data-testid="button-basic-plan">
+                  <a href="/login">Assinar Agora</a>
                 </Button>
               </CardContent>
             </Card>
@@ -151,34 +155,38 @@ export default function Landing() {
             <Card>
               <CardHeader>
                 <CardTitle>Full</CardTitle>
-                <div className="text-3xl font-bold">R$ 99,00<span className="text-base font-normal">/mês</span></div>
-                <CardDescription>Recursos ilimitados</CardDescription>
+                <div className="text-3xl font-bold">R$ 99,90<span className="text-base font-normal">/mês</span></div>
+                <CardDescription>Bot inteligente com IA</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Dispositivos ilimitados</span>
+                    <span className="text-sm">3 sessões/dispositivos WhatsApp</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Lógicas JSON avançadas</span>
+                    <span className="text-sm">Lógicas JSON + IA Gemini</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">IA Gemini completa</span>
+                    <span className="text-sm">Bot inteligente que aprende</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Comportamentos IA personalizados</span>
+                    <span className="text-sm">Respostas IA personalizadas</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Suporte prioritário</span>
+                    <span className="text-sm">Gerador automático de lógicas</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span className="text-sm">Suporte prioritário 24/7</span>
                   </li>
                 </ul>
-                <Button className="w-full" variant="default" asChild>
-                  <a href="/api/login">Assinar Full</a>
+                <Button className="w-full" variant="default" asChild data-testid="button-full-plan">
+                  <a href="/login">Assinar Full</a>
                 </Button>
               </CardContent>
             </Card>

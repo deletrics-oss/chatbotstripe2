@@ -48,14 +48,14 @@ export default function Billing() {
     {
       id: 'full',
       name: 'Full',
-      price: 'R$ 99,00',
+      price: 'R$ 99,90',
       period: 'por mês',
-      description: 'Recursos ilimitados',
+      description: 'Bot inteligente com IA',
       features: [
-        'Dispositivos WhatsApp ilimitados',
-        'Lógicas JSON avançadas',
-        'IA Gemini completa',
-        'Comportamentos IA personalizados',
+        '3 sessões/dispositivos WhatsApp',
+        'Lógicas JSON + IA Gemini',
+        'Bot inteligente que aprende',
+        'Respostas IA personalizadas',
         'Gerador automático de lógicas',
         'Análise de sentimento',
         'Webhooks e integrações',
@@ -67,7 +67,7 @@ export default function Billing() {
 
   const handleSubscribe = async (planId: string) => {
     if (!user) {
-      window.location.href = '/api/login';
+      window.location.href = '/login';
       return;
     }
 
