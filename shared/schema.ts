@@ -1,0 +1,232 @@
+import { sql } from 'drizzle-orm';
+import { relations } from 'drizzle-orm';
+import {
+  index,
+  jsonb,
+  pgTable,
+  timestamp,
+  varchar,
+  text,
+  boolean,
+  integer,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// ============ REPLIT AUTH TABLES (MANDATORY) ============
+
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Users table with local auth
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").notNull().unique(),
+  passwordHash: varchar("password_hash").notNull(),
+  email: varchar("email"),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  
+  // Stripe customer info
+  stripeCustomerId: varchar("stripe_customer_id").unique(),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  
+  // Subscription plan (free, basic, full)
+  currentPlan: varchar("current_plan").notNull().default('free'),
+  planExpiresAt: timestamp("plan_expires_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+
+// Login and registration schemas
+export const registerUserSchema = z.object({
+  username: z.string().min(3).max(50),
+  password: z.string().min(6),
+  email: z.string().email().optional(),
+});
+
+export const loginUserSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+});
+
+// ============ WHATSAPP DEVICES ============
+
+export const connectionStatusEnum = pgEnum('connection_status', ['disconnected', 'connecting', 'connected', 'qr_ready']);
+
+export const whatsappDevices = pgTable("whatsapp_devices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  phoneNumber: varchar("phone_number"),
+  connectionStatus: connectionStatusEnum("connection_status").notNull().default('disconnected'),
+  qrCode: text("qr_code"),
+  lastConnectedAt: timestamp("last_connected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappDeviceSchema = createInsertSchema(whatsappDevices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type WhatsappDevice = typeof whatsappDevices.$inferSelect;
+export type InsertWhatsappDevice = z.infer<typeof insertWhatsappDeviceSchema>;
+
+// ============ CONVERSATIONS & MESSAGES ============
+
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deviceId: varchar("device_id").notNull().references(() => whatsappDevices.id, { onDelete: 'cascade' }),
+  contactName: varchar("contact_name").notNull(),
+  contactPhone: varchar("contact_phone").notNull(),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  unreadCount: integer("unread_count").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+
+export const messageDirectionEnum = pgEnum('message_direction', ['incoming', 'outgoing']);
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  direction: messageDirectionEnum("direction").notNull(),
+  content: text("content").notNull(),
+  isFromBot: boolean("is_from_bot").notNull().default(false),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+// ============ LOGIC CONFIGS (JSON CHATBOT LOGIC) ============
+
+export const logicTypeEnum = pgEnum('logic_type', ['json', 'ai', 'hybrid']);
+
+export const logicConfigs = pgTable("logic_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: varchar("device_id").references(() => whatsappDevices.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  logicType: logicTypeEnum("logic_type").notNull().default('json'),
+  logicJson: jsonb("logic_json").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  isTemplate: boolean("is_template").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertLogicConfigSchema = createInsertSchema(logicConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  logicType: z.enum(['json', 'ai', 'hybrid']).default('json'), // Explicitly require and default to 'json'
+  logicJson: z.record(z.any()),
+});
+
+export type LogicConfig = typeof logicConfigs.$inferSelect;
+export type InsertLogicConfig = z.infer<typeof insertLogicConfigSchema>;
+
+// ============ KNOWLEDGE BASE ============
+
+export const knowledgeBase = pgTable("knowledge_base", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  category: varchar("category"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertKnowledgeBaseSchema = createInsertSchema(knowledgeBase).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
+export type InsertKnowledgeBase = z.infer<typeof insertKnowledgeBaseSchema>;
+
+// ============ RELATIONS ============
+
+export const usersRelations = relations(users, ({ many }) => ({
+  whatsappDevices: many(whatsappDevices),
+  logicConfigs: many(logicConfigs),
+  knowledgeBase: many(knowledgeBase),
+}));
+
+export const whatsappDevicesRelations = relations(whatsappDevices, ({ one, many }) => ({
+  user: one(users, {
+    fields: [whatsappDevices.userId],
+    references: [users.id],
+  }),
+  conversations: many(conversations),
+  logicConfigs: many(logicConfigs),
+}));
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  device: one(whatsappDevices, {
+    fields: [conversations.deviceId],
+    references: [whatsappDevices.id],
+  }),
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+}));
+
+export const logicConfigsRelations = relations(logicConfigs, ({ one }) => ({
+  user: one(users, {
+    fields: [logicConfigs.userId],
+    references: [users.id],
+  }),
+  device: one(whatsappDevices, {
+    fields: [logicConfigs.deviceId],
+    references: [whatsappDevices.id],
+  }),
+}));
+
+export const knowledgeBaseRelations = relations(knowledgeBase, ({ one }) => ({
+  user: one(users, {
+    fields: [knowledgeBase.userId],
+    references: [users.id],
+  }),
+}));
