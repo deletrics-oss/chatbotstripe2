@@ -70,6 +70,14 @@ export async function setupAuth(app: Express) {
       // Set session
       (req.session as any).userId = user.id;
 
+      // Save session before sending response (CRITICAL for session persistence)
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
       res.json({ message: "Usuário criado com sucesso", user: { id: user.id, username: user.username, currentPlan: user.currentPlan } });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -101,6 +109,14 @@ export async function setupAuth(app: Express) {
 
       // Set session
       (req.session as any).userId = user.id;
+
+      // Save session before sending response (CRITICAL for session persistence)
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
 
       res.json({ message: "Login bem-sucedido", user: { id: user.id, username: user.username, currentPlan: user.currentPlan } });
     } catch (error: any) {
