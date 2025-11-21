@@ -18,8 +18,6 @@ import {
   type KnowledgeBase,
   type InsertKnowledgeBase,
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export interface IStorage {
@@ -378,7 +376,6 @@ export class MemStorage implements IStorage {
     const newDevice: WhatsappDevice = {
       ...device,
       id: nanoid(),
-      phoneNumber: device.phoneNumber || null,
       connectionStatus: device.connectionStatus || 'disconnected',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -442,7 +439,6 @@ export class MemStorage implements IStorage {
     const newMessage: Message = {
       ...message,
       id: nanoid(),
-      isFromBot: message.isFromBot || false,
       timestamp: message.timestamp || new Date(),
       createdAt: new Date(),
     };
@@ -473,8 +469,6 @@ export class MemStorage implements IStorage {
     const newLogic: LogicConfig = {
       ...logic,
       id: nanoid(),
-      deviceId: logic.deviceId || null,
-      description: logic.description || null,
       logicType: logic.logicType || 'json',
       isActive: logic.isActive !== undefined ? logic.isActive : true,
       isTemplate: logic.isTemplate || false,
@@ -508,7 +502,6 @@ export class MemStorage implements IStorage {
     const newKb: KnowledgeBase = {
       ...kb,
       id: nanoid(),
-      category: kb.category || null,
       isActive: kb.isActive !== undefined ? kb.isActive : true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -537,7 +530,7 @@ export class MemStorage implements IStorage {
     today.setHours(0, 0, 0, 0);
     
     const messagesToday = Array.from(this.messages.values())
-      .filter((m: Message) => {
+      .filter(m => {
         const conv = this.conversations.get(m.conversationId);
         return conv && deviceIds.includes(conv.deviceId) && 
                m.timestamp && m.timestamp >= today;
@@ -597,12 +590,6 @@ export class MemStorage implements IStorage {
   }
 }
 
-// CONFIGURAÇÃO DE STORAGE:
-// - MemStorage: Dados em memória (perfeito para desenvolvimento)
-// - DatabaseStorage: PostgreSQL (produção - requer DATABASE_URL configurada)
-
-// Usando MemStorage no Replit (DATABASE_URL ainda não propagada)
+// Use MemStorage for now - switch to DatabaseStorage when DB is configured
 export const storage = new MemStorage();
-
-// Para produção no seu servidor Linux, troque para:
 // export const storage = new DatabaseStorage();

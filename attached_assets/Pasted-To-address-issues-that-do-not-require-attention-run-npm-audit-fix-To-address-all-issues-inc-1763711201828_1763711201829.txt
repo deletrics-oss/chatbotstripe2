@@ -1,0 +1,53 @@
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+root@srv1049746:~/chatbotstripe2# sudo ufw allow 5000
+Skipping adding existing rule
+Skipping adding existing rule (v6)
+root@srv1049746:~/chatbotstripe2# npm start 72
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js 72
+
+⚠️  CRITICAL: SESSION_SECRET not set in production! Set a strong random value in .env
+root@srv1049746:~/chatbotstripe2# pm2 logs 72
+[TAILING] Tailing last 15 lines for [72] process (change the value with --lines option)
+/root/chatbotstripe2/logs/error.log last 15 lines:
+72|chatbot | 2025-11-21T04:07:25:     at next (/root/chatbotstripe2/node_modules/express/lib/router/route.js:149:13)
+72|chatbot | 2025-11-21T04:07:25:     at isAuthenticated (file:///root/chatbotstripe2/dist/index.js:542:5)
+72|chatbot | 2025-11-21T04:07:44: Error creating broadcast: TypeError: storage.createBroadcast is not a function
+72|chatbot | 2025-11-21T04:07:44:     at file:///root/chatbotstripe2/dist/index.js:1397:39
+72|chatbot | 2025-11-21T04:07:47: Error creating broadcast: TypeError: storage.createBroadcast is not a function
+72|chatbot | 2025-11-21T04:07:47:     at file:///root/chatbotstripe2/dist/index.js:1397:39
+72|chatbot | 2025-11-21T04:07:50: Error creating broadcast: TypeError: storage.createBroadcast is not a function
+72|chatbot | 2025-11-21T04:07:50:     at file:///root/chatbotstripe2/dist/index.js:1397:39
+72|chatbot | 2025-11-21T04:08:00: Error creating broadcast: TypeError: storage.createBroadcast is not a function
+72|chatbot | 2025-11-21T04:08:00:     at file:///root/chatbotstripe2/dist/index.js:1397:39
+72|chatbot | 2025-11-21T04:09:21: Error fetching broadcasts: TypeError: storage.getBroadcasts is not a function
+72|chatbot | 2025-11-21T04:09:21:     at file:///root/chatbotstripe2/dist/index.js:1379:41
+72|chatbot | 2025-11-21T04:09:21:     at Layer.handle [as handle_request] (/root/chatbotstripe2/node_modules/express/lib/router/layer.js:95:5)
+72|chatbot | 2025-11-21T04:09:21:     at next (/root/chatbotstripe2/node_modules/express/lib/router/route.js:149:13)
+72|chatbot | 2025-11-21T04:09:21:     at isAuthenticated (file:///root/chatbotstripe2/dist/index.js:542:5)
+
+/root/.pm2/logs/chatbot-whatsapp-out.log last 15 lines:
+72|chatbot | 2025-11-21T04:39:33: [AUTH] No userId in session
+72|chatbot | 2025-11-21T04:39:33: 4:39:33 AM [express] GET /api/devices 401 in 1ms :: {"message":"Não autenticado"}
+72|chatbot | 2025-11-21T04:39:53: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:40:04: 4:40:04 AM [express] GET /api/health/gemini 304 in 1ms
+72|chatbot | 2025-11-21T04:40:53: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:41:04: 4:41:04 AM [express] GET /api/health/gemini 304 in 2ms
+72|chatbot | 2025-11-21T04:41:13: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:41:33: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:41:53: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:42:04: 4:42:04 AM [express] GET /api/health/gemini 304 in 2ms
+72|chatbot | 2025-11-21T04:42:13: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:43:04: 4:43:04 AM [express] GET /api/health/gemini 304 in 1ms
+72|chatbot | 2025-11-21T04:43:24: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+72|chatbot | 2025-11-21T04:44:04: 4:44:04 AM [express] GET /api/health/gemini 304 in 1ms
+72|chatbot | 2025-11-21T04:44:24: [WhatsApp] QR Code generated for device: 5HObeGliXoweCcTk6V9gx
+
+
