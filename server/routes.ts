@@ -12,12 +12,13 @@ import { processBroadcast } from "./broadcastProcessor";
 
 // Initialize Stripe (only if key is provided)
 const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-11-17.clover" })
   : null;
 
-// Initialize Gemini AI (only if key is provided)
-const ai = process.env.GEMINI_API_KEY
-  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+// Initialize Gemini AI (aceita GEMINI_API_KEY ou GOOGLE_API_KEY)
+const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const ai = geminiKey
+  ? new GoogleGenAI({ apiKey: geminiKey })
   : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -643,6 +644,234 @@ Responda APENAS com JSON válido, sem explicações adicionais.`;
       }
     });
   }
+
+  // ============ KNOWLEDGE BASE ROUTES ============
+  
+  // Get all knowledge base items for user
+  app.get('/api/knowledge', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const items = await storage.getKnowledgeBase(userId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching knowledge base:", error);
+      res.status(500).json({ message: "Failed to fetch knowledge base" });
+    }
+  });
+
+  // Get single knowledge base item
+  app.get('/api/knowledge/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const item = await storage.getKnowledgeBaseItem(id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Knowledge base item not found" });
+      }
+      
+      if (item.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error("Error fetching knowledge base item:", error);
+      res.status(500).json({ message: "Failed to fetch knowledge base item" });
+    }
+  });
+
+  // Create knowledge base item
+  app.post('/api/knowledge', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, content, category, imageUrls, tags } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ message: "Title and content are required" });
+      }
+      
+      const item = await storage.createKnowledgeBase({
+        userId,
+        title,
+        content,
+        category,
+        imageUrls,
+        tags,
+        isActive: true,
+      });
+      
+      res.json(item);
+    } catch (error) {
+      console.error("Error creating knowledge base item:", error);
+      res.status(500).json({ message: "Failed to create knowledge base item" });
+    }
+  });
+
+  // Update knowledge base item
+  app.patch('/api/knowledge/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const item = await storage.getKnowledgeBaseItem(id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Knowledge base item not found" });
+      }
+      
+      if (item.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updated = await storage.updateKnowledgeBase(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating knowledge base item:", error);
+      res.status(500).json({ message: "Failed to update knowledge base item" });
+    }
+  });
+
+  // Delete knowledge base item
+  app.delete('/api/knowledge/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const item = await storage.getKnowledgeBaseItem(id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Knowledge base item not found" });
+      }
+      
+      if (item.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      await storage.deleteKnowledgeBase(id);
+      res.json({ message: "Knowledge base item deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting knowledge base item:", error);
+      res.status(500).json({ message: "Failed to delete knowledge base item" });
+    }
+  });
+
+  // ============ BOT BEHAVIOR CONFIGS ROUTES ============
+  
+  // Get all bot behaviors for user
+  app.get('/api/bot-behaviors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const behaviors = await storage.getBotBehaviors(userId);
+      const presets = await storage.getPresetBehaviors();
+      res.json([...behaviors, ...presets]);
+    } catch (error) {
+      console.error("Error fetching bot behaviors:", error);
+      res.status(500).json({ message: "Failed to fetch bot behaviors" });
+    }
+  });
+
+  // Get single bot behavior
+  app.get('/api/bot-behaviors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const behavior = await storage.getBotBehavior(id);
+      
+      if (!behavior) {
+        return res.status(404).json({ message: "Bot behavior not found" });
+      }
+      
+      if (!behavior.isPreset && behavior.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      res.json(behavior);
+    } catch (error) {
+      console.error("Error fetching bot behavior:", error);
+      res.status(500).json({ message: "Failed to fetch bot behavior" });
+    }
+  });
+
+  // Create bot behavior
+  app.post('/api/bot-behaviors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, tone, personality, responseStyle, customInstructions } = req.body;
+      
+      if (!name || !personality) {
+        return res.status(400).json({ message: "Name and personality are required" });
+      }
+      
+      const behavior = await storage.createBotBehavior({
+        userId,
+        name,
+        tone: tone || 'professional',
+        personality,
+        responseStyle: responseStyle || 'concise',
+        customInstructions,
+        isActive: true,
+        isPreset: false,
+      });
+      
+      res.json(behavior);
+    } catch (error) {
+      console.error("Error creating bot behavior:", error);
+      res.status(500).json({ message: "Failed to create bot behavior" });
+    }
+  });
+
+  // Update bot behavior
+  app.patch('/api/bot-behaviors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const behavior = await storage.getBotBehavior(id);
+      
+      if (!behavior) {
+        return res.status(404).json({ message: "Bot behavior not found" });
+      }
+      
+      if (behavior.isPreset) {
+        return res.status(403).json({ message: "Cannot edit preset behaviors" });
+      }
+      
+      if (behavior.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updated = await storage.updateBotBehavior(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating bot behavior:", error);
+      res.status(500).json({ message: "Failed to update bot behavior" });
+    }
+  });
+
+  // Delete bot behavior
+  app.delete('/api/bot-behaviors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const behavior = await storage.getBotBehavior(id);
+      
+      if (!behavior) {
+        return res.status(404).json({ message: "Bot behavior not found" });
+      }
+      
+      if (behavior.isPreset) {
+        return res.status(403).json({ message: "Cannot delete preset behaviors" });
+      }
+      
+      if (behavior.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      await storage.deleteBotBehavior(id);
+      res.json({ message: "Bot behavior deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting bot behavior:", error);
+      res.status(500).json({ message: "Failed to delete bot behavior" });
+    }
+  });
 
   // ============ BROADCAST (MASS MESSAGING) ROUTES ============
   

@@ -143,6 +143,7 @@ export const logicConfigs = pgTable("logic_configs", {
   description: text("description"),
   logicType: logicTypeEnum("logic_type").notNull().default('json'),
   logicJson: jsonb("logic_json").notNull(),
+  behaviorConfigId: varchar("behavior_config_id"), // Comportamento do bot para AI/Hybrid
   isActive: boolean("is_active").notNull().default(true),
   isTemplate: boolean("is_template").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -169,6 +170,8 @@ export const knowledgeBase = pgTable("knowledge_base", {
   title: varchar("title").notNull(),
   content: text("content").notNull(),
   category: varchar("category"),
+  imageUrls: text("image_urls").array(), // Suporte para múltiplas imagens
+  tags: text("tags").array(), // Tags para busca
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -182,6 +185,31 @@ export const insertKnowledgeBaseSchema = createInsertSchema(knowledgeBase).omit(
 
 export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
 export type InsertKnowledgeBase = z.infer<typeof insertKnowledgeBaseSchema>;
+
+// ============ BOT BEHAVIOR CONFIGS ============
+
+export const botBehaviorConfigs = pgTable("bot_behavior_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(), // Nome do comportamento
+  tone: varchar("tone").notNull().default('professional'), // formal, friendly, casual, sales, support
+  personality: text("personality").notNull(), // Descrição da personalidade
+  responseStyle: varchar("response_style").notNull().default('concise'), // concise, detailed, empathetic
+  customInstructions: text("custom_instructions"), // Instruções customizadas
+  isActive: boolean("is_active").notNull().default(true),
+  isPreset: boolean("is_preset").notNull().default(false), // Se é comportamento padrão do sistema
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBotBehaviorConfigSchema = createInsertSchema(botBehaviorConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BotBehaviorConfig = typeof botBehaviorConfigs.$inferSelect;
+export type InsertBotBehaviorConfig = z.infer<typeof insertBotBehaviorConfigSchema>;
 
 // ============ BROADCASTS (MASS MESSAGING) ============
 

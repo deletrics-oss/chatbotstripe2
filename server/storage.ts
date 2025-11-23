@@ -5,6 +5,9 @@ import {
   messages,
   logicConfigs,
   knowledgeBase,
+  botBehaviorConfigs,
+  broadcasts,
+  broadcastContacts,
   type User,
   type InsertUser,
   type WhatsappDevice,
@@ -17,6 +20,10 @@ import {
   type InsertLogicConfig,
   type KnowledgeBase,
   type InsertKnowledgeBase,
+  type BotBehaviorConfig,
+  type InsertBotBehaviorConfig,
+  type Broadcast,
+  type InsertBroadcast,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -54,7 +61,18 @@ export interface IStorage {
   
   // Knowledge Base
   getKnowledgeBase(userId: string): Promise<KnowledgeBase[]>;
+  getKnowledgeBaseItem(id: string): Promise<KnowledgeBase | undefined>;
   createKnowledgeBase(kb: InsertKnowledgeBase): Promise<KnowledgeBase>;
+  updateKnowledgeBase(id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase>;
+  deleteKnowledgeBase(id: string): Promise<void>;
+  
+  // Bot Behavior Configs
+  getBotBehaviors(userId: string): Promise<BotBehaviorConfig[]>;
+  getBotBehavior(id: string): Promise<BotBehaviorConfig | undefined>;
+  createBotBehavior(behavior: InsertBotBehaviorConfig): Promise<BotBehaviorConfig>;
+  updateBotBehavior(id: string, data: Partial<BotBehaviorConfig>): Promise<BotBehaviorConfig>;
+  deleteBotBehavior(id: string): Promise<void>;
+  getPresetBehaviors(): Promise<BotBehaviorConfig[]>;
   
   // Stats
   getStats(userId: string): Promise<{
@@ -81,17 +99,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Stub broadcast methods - not implemented for DB yet
-  async getBroadcasts(userId: string): Promise<any[]> { return []; }
-  async getBroadcast(id: string): Promise<any | undefined> { return undefined; }
-  async createBroadcast(broadcast: any): Promise<any> { return broadcast; }
-  async updateBroadcast(id: string, data: any): Promise<any> { return data; }
-  async deleteBroadcast(id: string): Promise<void> { }
-  async getBroadcastContacts(broadcastId: string): Promise<any[]> { return []; }
-  async createBroadcastContact(contact: any): Promise<any> { return contact; }
-  async updateBroadcastContact(id: string, data: any): Promise<any> { return data; }
-  async updateUser(id: string, data: any): Promise<User> { return data as User; }
-  async upsertUser(user: User): Promise<User> { return user; }
 
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -255,12 +262,85 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(knowledgeBase.createdAt));
   }
 
+  async getKnowledgeBaseItem(id: string): Promise<KnowledgeBase | undefined> {
+    const [item] = await db
+      .select()
+      .from(knowledgeBase)
+      .where(eq(knowledgeBase.id, id));
+    return item;
+  }
+
   async createKnowledgeBase(kb: InsertKnowledgeBase): Promise<KnowledgeBase> {
     const [newKb] = await db
       .insert(knowledgeBase)
       .values(kb)
       .returning();
     return newKb;
+  }
+
+  async updateKnowledgeBase(id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase> {
+    const [updated] = await db
+      .update(knowledgeBase)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(knowledgeBase.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteKnowledgeBase(id: string): Promise<void> {
+    await db.delete(knowledgeBase).where(eq(knowledgeBase.id, id));
+  }
+
+  // Bot Behavior Configs
+  async getBotBehaviors(userId: string): Promise<BotBehaviorConfig[]> {
+    return await db
+      .select()
+      .from(botBehaviorConfigs)
+      .where(eq(botBehaviorConfigs.userId, userId))
+      .orderBy(desc(botBehaviorConfigs.createdAt));
+  }
+
+  async getBotBehavior(id: string): Promise<BotBehaviorConfig | undefined> {
+    const [behavior] = await db
+      .select()
+      .from(botBehaviorConfigs)
+      .where(eq(botBehaviorConfigs.id, id));
+    return behavior;
+  }
+
+  async createBotBehavior(behavior: InsertBotBehaviorConfig): Promise<BotBehaviorConfig> {
+    const [newBehavior] = await db
+      .insert(botBehaviorConfigs)
+      .values(behavior)
+      .returning();
+    return newBehavior;
+  }
+
+  async updateBotBehavior(id: string, data: Partial<BotBehaviorConfig>): Promise<BotBehaviorConfig> {
+    const [updated] = await db
+      .update(botBehaviorConfigs)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(botBehaviorConfigs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBotBehavior(id: string): Promise<void> {
+    await db.delete(botBehaviorConfigs).where(eq(botBehaviorConfigs.id, id));
+  }
+
+  async getPresetBehaviors(): Promise<BotBehaviorConfig[]> {
+    const dbPresets = await db
+      .select()
+      .from(botBehaviorConfigs)
+      .where(eq(botBehaviorConfigs.isPreset, true));
+    
+    // Se não há presets no banco, retornar presets constantes
+    if (dbPresets.length === 0) {
+      return PRESET_BEHAVIORS;
+    }
+    
+    return dbPresets;
   }
 
   // Stats
@@ -283,7 +363,7 @@ export class DatabaseStorage implements IStorage {
       .from(conversations)
       .where(eq(conversations.isActive, true));
     
-    const activeChats = allConversations.filter(c => deviceIds.includes(c.deviceId)).length;
+    const activeChats = allConversations.filter((c: Conversation) => deviceIds.includes(c.deviceId)).length;
 
     // Count messages today
     const today = new Date();
@@ -298,8 +378,8 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(conversations);
     
-    const messagesToday = allMessages.filter(m => {
-      const conv = todayConversations.find(c => c.id === m.conversationId);
+    const messagesToday = allMessages.filter((m: Message) => {
+      const conv = todayConversations.find((c: Conversation) => c.id === m.conversationId);
       return conv && deviceIds.includes(conv.deviceId);
     }).length;
 
@@ -312,7 +392,148 @@ export class DatabaseStorage implements IStorage {
       responseRate,
     };
   }
+
+  // User update operations
+  async updateUser(id: string, data: any): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+
+  async upsertUser(user: User): Promise<User> {
+    const existing = await this.getUser(user.id);
+    if (existing) {
+      return await this.updateUser(user.id, user);
+    } else {
+      const [newUser] = await db
+        .insert(users)
+        .values(user as any)
+        .returning();
+      return newUser;
+    }
+  }
+
+  // Broadcast operations
+  async getBroadcasts(userId: string): Promise<Broadcast[]> {
+    return await db
+      .select()
+      .from(broadcasts)
+      .where(eq(broadcasts.userId, userId))
+      .orderBy(desc(broadcasts.createdAt));
+  }
+
+  async getBroadcast(id: string): Promise<Broadcast | undefined> {
+    const [broadcast] = await db
+      .select()
+      .from(broadcasts)
+      .where(eq(broadcasts.id, id));
+    return broadcast;
+  }
+
+  async createBroadcast(data: InsertBroadcast): Promise<Broadcast> {
+    const [broadcast] = await db
+      .insert(broadcasts)
+      .values(data)
+      .returning();
+    return broadcast;
+  }
+
+  async updateBroadcast(id: string, data: Partial<Broadcast>): Promise<Broadcast> {
+    const [updated] = await db
+      .update(broadcasts)
+      .set(data)
+      .where(eq(broadcasts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBroadcast(id: string): Promise<void> {
+    await db.delete(broadcasts).where(eq(broadcasts.id, id));
+  }
+
+  async getBroadcastContacts(broadcastId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(broadcastContacts)
+      .where(eq(broadcastContacts.broadcastId, broadcastId));
+  }
+
+  async createBroadcastContact(data: any): Promise<any> {
+    const [contact] = await db
+      .insert(broadcastContacts)
+      .values(data)
+      .returning();
+    return contact;
+  }
+
+  async updateBroadcastContact(id: string, data: any): Promise<any> {
+    const [updated] = await db
+      .update(broadcastContacts)
+      .set(data)
+      .where(eq(broadcastContacts.id, id))
+      .returning();
+    return updated;
+  }
 }
+
+// Comportamentos Padrões (Presets)
+const PRESET_BEHAVIORS: BotBehaviorConfig[] = [
+  {
+    id: 'preset-professional',
+    userId: 'system',
+    name: 'Profissional',
+    tone: 'formal',
+    personality: 'Sou um assistente profissional e cortês. Falo de forma clara e objetiva, sempre mantendo respeito e formalidade.',
+    responseStyle: 'concise',
+    customInstructions: 'Use linguagem formal. Sempre cumprimente educadamente.',
+    isActive: true,
+    isPreset: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'preset-friendly',
+    userId: 'system',
+    name: 'Amigável',
+    tone: 'friendly',
+    personality: 'Sou um assistente amigável e acolhedor. Converso de forma calorosa e empática, criando conexão genuína.',
+    responseStyle: 'detailed',
+    customInstructions: 'Use tom amigável. Mostre empatia e interesse genuíno.',
+    isActive: true,
+    isPreset: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'preset-sales',
+    userId: 'system',
+    name: 'Vendas',
+    tone: 'persuasive',
+    personality: 'Sou um assistente de vendas consultivo. Identifico necessidades e apresento soluções de forma persuasiva mas não invasiva.',
+    responseStyle: 'detailed',
+    customInstructions: 'Foque em benefícios. Faça perguntas qualificadoras. Conduza para conversão.',
+    isActive: true,
+    isPreset: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'preset-support',
+    userId: 'system',
+    name: 'Suporte Técnico',
+    tone: 'empathetic',
+    personality: 'Sou um assistente de suporte técnico prestativo. Resolvo problemas de forma clara, paciente e didática.',
+    responseStyle: 'detailed',
+    customInstructions: 'Seja paciente. Explique passo a passo. Confirme resolução do problema.',
+    isActive: true,
+    isPreset: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
 
 // In-memory storage implementation
 export class MemStorage implements IStorage {
@@ -321,7 +542,17 @@ export class MemStorage implements IStorage {
   private conversations = new Map<string, Conversation>();
   private messages = new Map<string, Message>();
   private logics = new Map<string, LogicConfig>();
-  private knowledgeBase = new Map<string, KnowledgeBase>();
+  private knowledgeBases = new Map<string, KnowledgeBase>();
+  private botBehaviors = new Map<string, BotBehaviorConfig>();
+  private broadcasts = new Map<string, any>();
+  private broadcastContacts = new Map<string, any>();
+  
+  constructor() {
+    // Inicializar presets
+    PRESET_BEHAVIORS.forEach(preset => {
+      this.botBehaviors.set(preset.id, preset);
+    });
+  }
 
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -380,6 +611,10 @@ export class MemStorage implements IStorage {
       id: nanoid(),
       phoneNumber: device.phoneNumber || null,
       connectionStatus: device.connectionStatus || 'disconnected',
+      qrCode: null,
+      lastConnectedAt: null,
+      activeLogicId: null,
+      isPaused: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -476,6 +711,7 @@ export class MemStorage implements IStorage {
       deviceId: logic.deviceId || null,
       description: logic.description || null,
       logicType: logic.logicType || 'json',
+      behaviorConfigId: null,
       isActive: logic.isActive !== undefined ? logic.isActive : true,
       isTemplate: logic.isTemplate || false,
       createdAt: new Date(),
@@ -499,9 +735,13 @@ export class MemStorage implements IStorage {
 
   // Knowledge Base
   async getKnowledgeBase(userId: string): Promise<KnowledgeBase[]> {
-    return Array.from(this.knowledgeBase.values())
+    return Array.from(this.knowledgeBases.values())
       .filter(kb => kb.userId === userId)
       .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async getKnowledgeBaseItem(id: string): Promise<KnowledgeBase | undefined> {
+    return this.knowledgeBases.get(id);
   }
 
   async createKnowledgeBase(kb: InsertKnowledgeBase): Promise<KnowledgeBase> {
@@ -509,12 +749,69 @@ export class MemStorage implements IStorage {
       ...kb,
       id: nanoid(),
       category: kb.category || null,
+      imageUrls: kb.imageUrls || null,
+      tags: kb.tags || null,
       isActive: kb.isActive !== undefined ? kb.isActive : true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    this.knowledgeBase.set(newKb.id, newKb);
+    this.knowledgeBases.set(newKb.id, newKb);
     return newKb;
+  }
+
+  async updateKnowledgeBase(id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase> {
+    const kb = this.knowledgeBases.get(id);
+    if (!kb) throw new Error('Knowledge Base item not found');
+    const updated = { ...kb, ...data, updatedAt: new Date() };
+    this.knowledgeBases.set(id, updated);
+    return updated;
+  }
+
+  async deleteKnowledgeBase(id: string): Promise<void> {
+    this.knowledgeBases.delete(id);
+  }
+
+  // Bot Behavior Configs
+  async getBotBehaviors(userId: string): Promise<BotBehaviorConfig[]> {
+    return Array.from(this.botBehaviors.values())
+      .filter(b => b.userId === userId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async getBotBehavior(id: string): Promise<BotBehaviorConfig | undefined> {
+    return this.botBehaviors.get(id);
+  }
+
+  async createBotBehavior(behavior: InsertBotBehaviorConfig): Promise<BotBehaviorConfig> {
+    const newBehavior: BotBehaviorConfig = {
+      ...behavior,
+      id: nanoid(),
+      tone: behavior.tone || 'professional',
+      responseStyle: behavior.responseStyle || 'concise',
+      customInstructions: behavior.customInstructions || null,
+      isActive: behavior.isActive !== undefined ? behavior.isActive : true,
+      isPreset: behavior.isPreset || false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.botBehaviors.set(newBehavior.id, newBehavior);
+    return newBehavior;
+  }
+
+  async updateBotBehavior(id: string, data: Partial<BotBehaviorConfig>): Promise<BotBehaviorConfig> {
+    const behavior = this.botBehaviors.get(id);
+    if (!behavior) throw new Error('Bot Behavior not found');
+    const updated = { ...behavior, ...data, updatedAt: new Date() };
+    this.botBehaviors.set(id, updated);
+    return updated;
+  }
+
+  async deleteBotBehavior(id: string): Promise<void> {
+    this.botBehaviors.delete(id);
+  }
+
+  async getPresetBehaviors(): Promise<BotBehaviorConfig[]> {
+    return Array.from(this.botBehaviors.values()).filter(b => b.isPreset);
   }
 
   // Stats
@@ -549,8 +846,6 @@ export class MemStorage implements IStorage {
   }
 
   // ============ BROADCAST METHODS ============
-  private broadcasts = new Map<string, any>();
-  private broadcastContacts = new Map<string, any>();
 
   async getBroadcasts(userId: string): Promise<any[]> {
     return Array.from(this.broadcasts.values()).filter(b => b.userId === userId);
