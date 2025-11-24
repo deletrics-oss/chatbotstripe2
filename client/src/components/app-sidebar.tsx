@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut } from "lucide-react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -35,6 +35,16 @@ const menuItems = [
     title: "Lógicas",
     url: "/logic",
     icon: FileJson,
+  },
+  {
+    title: "Base de Conhecimento",
+    url: "/knowledge",
+    icon: BookOpen,
+  },
+  {
+    title: "Comportamentos do Bot",
+    url: "/behaviors",
+    icon: Brain,
   },
   {
     title: "Disparo em Massa",
@@ -100,9 +110,9 @@ export function AppSidebar() {
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-2 rounded-lg">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={user.profileImageUrl || undefined} />
+                <AvatarImage src={undefined} />
                 <AvatarFallback>
-                  {user.firstName?.[0] || user.email?.[0] || 'U'}
+                  {user.firstName?.[0] || user.email?.[0] || user.username?.[0] || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

@@ -1,0 +1,34 @@
+bot | A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+/root/.pm2/logs/chatbot-out.log last 20 lines:
+73|chatbot | 10:47:11 PM [express] serving on port 3035
+73|chatbot | [AUTH] No userId in session
+73|chatbot | 10:47:21 PM [express] GET /api/auth/user 401 in 2ms :: {"message":"Não autenticado"}
+73|chatbot | [AUTH] No userId in session
+73|chatbot | 10:47:23 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Não autenticado"}
+73|chatbot | [REGISTER] Request received: { username: 'admin', hasEmail: false }
+73|chatbot | [REGISTER] User created successfully: { id: 'BEf5OFaXSAdoboIBnw-jZ', username: 'admin' }
+73|chatbot | [REGISTER] Session userId set: BEf5OFaXSAdoboIBnw-jZ
+73|chatbot | [REGISTER] Session saved successfully
+73|chatbot | [REGISTER] Sending success response
+73|chatbot | 10:47:27 PM [express] POST /api/auth/register 200 in 86ms :: {"message":"Usuário criado com sucesso",…
+73|chatbot | 10:47:28 PM [express] GET /api/auth/user 200 in 1ms :: {"username":"admin","passwordHash":"$2b$10$v/a…
+73|chatbot | 10:47:28 PM [express] GET /api/devices 200 in 2ms :: []
+73|chatbot | 10:47:28 PM [express] GET /api/stats 304 in 1ms :: {"activeChats":0,"messagesToday":0,"responseRate":…
+73|chatbot | 10:47:32 PM [express] GET /api/broadcasts 304 in 1ms :: []
+73|chatbot | 10:47:32 PM [express] GET /api/logics 200 in 1ms :: []
+73|chatbot | 10:47:33 PM [express] GET /api/conversations 304 in 1ms :: []
+73|chatbot | 10:47:48 PM [express] POST /api/logics 200 in 2ms :: {"userId":"BEf5OFaXSAdoboIBnw-jZ","name":"IA","d…
+73|chatbot | 10:47:48 PM [express] GET /api/logics 200 in 1ms :: [{"userId":"BEf5OFaXSAdoboIBnw-jZ","name":"IA","d…
+73|chatbot | 10:47:59 PM [express] POST /api/ai/generate-logic 200 in 1608ms :: {"logicJson":{"rules":[{"keywords"…
+
+74|chatbot  | > rest-express@1.0.0 dev
+74|chatbot  | > NODE_ENV=development tsx server/index-dev.ts
+74|chatbot  | [loadEnv] Loaded .env file
+74|chatbot  | [loadEnv] DATABASE_URL loaded successfully (length: 60 )
+74|chatbot  | [loadEnv] PGHOST: EMPTY
+74|chatbot  | [loadEnv] PGUSER: EMPTY
+74|chatbot  | [loadEnv] PGDATABASE: EMPTY
+74|chatbot  | [loadEnv] PGPORT: EMPTY
+74|chatbot  | [loadEnv] PGPASSWORD: EMPTY
+74|chatbot  | 10:49:41 PM [express] serving on port 3035

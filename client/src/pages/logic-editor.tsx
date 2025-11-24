@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import type { LogicConfig } from "@shared/schema";
+import type { LogicConfig, BotBehaviorConfig } from "@shared/schema";
 import Editor from "@monaco-editor/react";
 
 export default function LogicEditor() {
@@ -21,6 +22,7 @@ export default function LogicEditor() {
   const [newLogicName, setNewLogicName] = useState("");
   const [newLogicDescription, setNewLogicDescription] = useState("");
   const [newLogicType, setNewLogicType] = useState<'json' | 'ai' | 'hybrid'>('json');
+  const [selectedBehaviorId, setSelectedBehaviorId] = useState<string>("");
   const [selectedLogicId, setSelectedLogicId] = useState<string | null>(null);
   const [jsonContent, setJsonContent] = useState("{}");
   const [aiPrompt, setAiPrompt] = useState("");
@@ -32,6 +34,10 @@ export default function LogicEditor() {
     queryKey: ['/api/logics'],
   });
 
+  const { data: behaviors } = useQuery<BotBehaviorConfig[]>({
+    queryKey: ['/api/bot-behaviors'],
+  });
+
   const generateAiLogicMutation = useMutation({
     mutationFn: async (prompt: string) => {
       return await apiRequest("POST", "/api/ai/generate-logic", { prompt });
@@ -40,6 +46,7 @@ export default function LogicEditor() {
       try {
         const generatedJson = data.logicJson || data;
         setAiGeneratedJson(generatedJson);
+        setJsonContent(JSON.stringify(generatedJson, null, 2));
         toast({
           title: "Lógica gerada",
           description: "JSON gerado com sucesso pela IA. Revise e salve se necessário.",
@@ -83,7 +90,7 @@ export default function LogicEditor() {
   });
 
   const createLogicMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; logicJson: any; logicType: 'json' | 'ai' | 'hybrid' }) => {
+    mutationFn: async (data: { name: string; description: string; logicJson: any; logicType: 'json' | 'ai' | 'hybrid'; behaviorConfigId?: string }) => {
       return await apiRequest("POST", "/api/logics", data);
     },
     onSuccess: () => {
@@ -92,6 +99,7 @@ export default function LogicEditor() {
       setNewLogicName("");
       setNewLogicDescription("");
       setNewLogicType('json');
+      setSelectedBehaviorId("");
       toast({
         title: "Lógica criada",
         description: "Nova lógica adicionada com sucesso",
@@ -256,6 +264,22 @@ export default function LogicEditor() {
                       data-testid="input-logic-description"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="behavior">Comportamento do Bot (Opcional)</Label>
+                    <Select value={selectedBehaviorId} onValueChange={setSelectedBehaviorId}>
+                      <SelectTrigger id="behavior" data-testid="select-behavior">
+                        <SelectValue placeholder="Selecione um comportamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Nenhum</SelectItem>
+                        {behaviors?.map((behavior) => (
+                          <SelectItem key={behavior.id} value={behavior.id}>
+                            {behavior.isPreset ? '⭐ ' : ''}{behavior.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div>
@@ -298,6 +322,7 @@ export default function LogicEditor() {
                       description: newLogicDescription,
                       logicJson: {},
                       logicType: newLogicType,
+                      behaviorConfigId: selectedBehaviorId || undefined,
                     })}
                     disabled={!newLogicName || createLogicMutation.isPending}
                     data-testid="button-submit-logic"

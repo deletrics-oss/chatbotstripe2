@@ -14,6 +14,10 @@ import Dashboard from "@/pages/dashboard";
 import Devices from "@/pages/devices";
 import Chat from "@/pages/chat";
 import LogicEditor from "@/pages/logic-editor";
+import Knowledge from "@/pages/knowledge";
+import KnowledgeEditor from "@/pages/knowledge-editor";
+import Behaviors from "@/pages/behaviors";
+import BehaviorEditor from "@/pages/behavior-editor";
 import Billing from "@/pages/billing";
 import Settings from "@/pages/settings";
 import Broadcast from "@/pages/broadcast";
@@ -64,6 +68,12 @@ function AppContent() {
               <Route path="/devices" component={Devices} />
               <Route path="/chat" component={Chat} />
               <Route path="/logic" component={LogicEditor} />
+              <Route path="/knowledge/new" component={KnowledgeEditor} />
+              <Route path="/knowledge/:id" component={KnowledgeEditor} />
+              <Route path="/knowledge" component={Knowledge} />
+              <Route path="/behaviors/new" component={BehaviorEditor} />
+              <Route path="/behaviors/:id" component={BehaviorEditor} />
+              <Route path="/behaviors" component={Behaviors} />
               <Route path="/broadcast" component={Broadcast} />
               <Route path="/billing" component={Billing} />
               <Route path="/settings" component={Settings} />
