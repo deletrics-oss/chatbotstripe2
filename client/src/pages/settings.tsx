@@ -19,6 +19,7 @@ export default function Settings() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [messageNotifications, setMessageNotifications] = useState(true);
   const [dailySummaries, setDailySummaries] = useState(true);
+  const [adminSecret, setAdminSecret] = useState("");
 
   const saveProfileMutation = useMutation({
     mutationFn: async () => {
@@ -43,6 +44,28 @@ export default function Settings() {
     },
   });
 
+  const promoteToAdminMutation = useMutation({
+    mutationFn: async (secret: string) => {
+      const res = await apiRequest("POST", "/api/admin/promote", { secret });
+      return await res.json();
+    },
+    onSuccess: () => {
+      refreshUser?.();
+      setAdminSecret("");
+      toast({
+        title: "Promovido a Admin! 🎉",
+        description: "Você agora tem acesso total ao sistema.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Código Inválido",
+        description: error?.message || "O código secreto está incorreto.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="p-6 md:p-8 space-y-8 max-w-4xl">
       <div>
@@ -59,7 +82,7 @@ export default function Settings() {
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user?.profileImageUrl || undefined} />
+              <AvatarImage src={undefined} />
               <AvatarFallback className="text-2xl">
                 {user?.firstName?.[0] || user?.email?.[0] || 'U'}
               </AvatarFallback>
@@ -186,6 +209,51 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Admin Promotion */}
+      {!user?.isAdmin && (
+        <Card className="border-dashed border-2">
+          <CardHeader>
+            <CardTitle>Promoção a Administrador</CardTitle>
+            <CardDescription>Digite o código secreto para desbloquear acesso total</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="admin-secret">Código Secreto</Label>
+              <Input
+                id="admin-secret"
+                type="password"
+                placeholder="Digite o código..."
+                value={adminSecret}
+                onChange={(e) => setAdminSecret(e.target.value)}
+                data-testid="input-admin-secret"
+              />
+            </div>
+            <Button
+              onClick={() => promoteToAdminMutation.mutate(adminSecret)}
+              disabled={!adminSecret || promoteToAdminMutation.isPending}
+              className="w-full"
+              data-testid="button-promote-admin"
+            >
+              {promoteToAdminMutation.isPending ? "Verificando..." : "Promover a Admin"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {user?.isAdmin && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle>Status de Administrador ✅</CardTitle>
+            <CardDescription>Você tem acesso total ao sistema</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Como administrador, você tem acesso ilimitado a todos os recursos, sem restrições de plano.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

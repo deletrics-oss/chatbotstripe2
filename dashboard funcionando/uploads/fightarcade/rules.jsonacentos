@@ -1,0 +1,151 @@
+{
+  "menu_principal_texto": "Olá! ?? Sou seu assistente virtual da Fight Arcade e vou te ajudar a encontrar tudo o que precisa.\n\nPara começarmos, me diga o que você gostaria de fazer:\n\n1?? - Ver modelos e preços\n2?? - Ver opções de estampas\n3?? - Suporte Técnico\n4?? - Finalizar compra\n5?? - Falar com um atendente",
+  "default_reply": "Desculpe, não entendi sua solicitação. Por favor, escolha uma das opções ou digite *menu* para voltar ao início.",
+  "rules": [
+    {
+      "keywords": ["oi", "ola", "olá", "eai", "tudo bem", "menu", "início", "start", "voltar", "sair"],
+      "reply": "Olá! ?? Sou seu assistente virtual da Fight Arcade e vou te ajudar a encontrar tudo o que precisa.\n\nPara começarmos, me diga o que você gostaria de fazer:\n\n1?? - Ver modelos e preços\n2?? - Ver opções de estampas\n3?? - Suporte Técnico\n4?? - Finalizar compra\n5?? - Falar com um atendente",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["1"],
+      "reply": "Legal! Para começar, me diga o que você procura (digite *P + o número*):\n\nP1 - Fliperama Completo (com jogos)\nP2 - Apenas Controle USB (para PC)",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1"],
+      "reply": "Certo, Fliperama! E você precisa para quantos jogadores (digite *P1 + o número*)?\n\nP1-1 - Para 1 Jogador\nP1-2 - Para 2 Jogadores",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p2"],
+      "reply": "Certo, Controle USB! E você precisa para quantos jogadores (digite *P2 + o número*)?\n\nP2-1 - Para 1 Jogador\nP2-2 - Para 2 Jogadores",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1-1"],
+      "reply": "Ótimo! E qual material você prefere para o seu fliperama de 1 jogador (digite *P1-1 + o número*)?\n\nP1-1-1 - MDF (Clássico)\nP1-1-2 - Metal (Ultra Resistente)",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1-2"],
+      "reply": "Ótimo! E qual material você prefere para o seu fliperama de 2 jogadores (digite *P1-2 + o número*)?\n\nP1-2-1 - MDF (Clássico)\nP1-2-2 - Metal (Ultra Resistente)",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1-1-1"],
+      "reply": "Excelente! Aqui estão os preços para *Fliperama de 1 Jogador em MDF*:\n\n- *Comando Mecânico:* R$ 499\n- *Comando Óptico:* R$ 550\n\nO que você gostaria de fazer agora?\n\nC1 - Comprar Online (Mercado Livre/Shopee)\n5 - Falar com um atendente\n\nOu digite *menu* para voltar ao início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1-1-2"],
+      "reply": "Excelente! Aqui estão os preços para *Fliperama de 1 Jogador em Metal*:\n\n- *Comando Mecânico:* R$ 599\n- *Comando Óptico:* R$ 650\n\nO que você gostaria de fazer agora?\n\nC1 - Comprar Online (Mercado Livre/Shopee)\n5 - Falar com um atendente\n\nOu digite *menu* para voltar ao início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1-2-1"],
+      "reply": "Excelente! Aqui estão os preços para *Fliperama de 2 Jogadores em MDF*:\n\n- *Comando Mecânico:* R$ 599\n- *Comando Óptico:* R$ 699\n\nO que você gostaria de fazer agora?\n\nC1 - Comprar Online (Mercado Livre/Shopee)\n5 - Falar com um atendente\n\nOu digite *menu* para voltar ao início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1-2-2"],
+      "reply": "Excelente! Aqui estão os preços para *Fliperama de 2 Jogadores em Metal*:\n\n- *Comando Mecânico:* R$ 699\n- *Comando Óptico:* R$ 799\n\nO que você gostaria de fazer agora?\n\nC1 - Comprar Online (Mercado Livre/Shopee)\n5 - Falar com um atendente\n\nOu digite *menu* para voltar ao início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p2-1"],
+      "reply": "Excelente! Preços para *Controle USB de 1 Jogador*:\n\n**Gabinete em MDF:**\n- Mecânico: R$ 299\n- Óptico: R$ 350\n- Óptico Pico (Latência Mínima): R$ 450\n\n**Gabinete em Metal:**\n- Mecânico: R$ 399\n- Óptico: R$ 450\n\nO que você gostaria de fazer agora?\n\nC1 - Comprar Online (Mercado Livre/Shopee)\n5 - Falar com um atendente\n\nOu digite *menu* para voltar ao início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p2-2"],
+      "reply": "Excelente! Preços para *Controle USB de 2 Jogadores*:\n\n**Gabinete em MDF:**\n- Mecânico: R$ 499\n- Óptico: R$ 599\n\n**Gabinete em Metal:**\n- Mecânico: R$ 650\n- Óptico: R$ 750\n\nO que você gostaria de fazer agora?\n\nC1 - Comprar Online (Mercado Livre/Shopee)\n5 - Falar com um atendente\n\nOu digite *menu* para voltar ao início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["2", "estampas"],
+      "reply": "A personalização é a parte mais divertida! Você pode escolher entre dezenas de estampas.\n\nVeja todas as opções em nosso catálogo online aqui:\n?? https://acesse.one/fightarcadeestampa\n\nCaso prefira, você também pode enviar sua própria arte em alta resolução. Posso ajudar com algo mais?",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["3", "problema", "ajuda", "suporte", "nao funciona"],
+      "reply": "Entendo que precisa de ajuda. Para selecionar uma opção, digite *S + o número* (Exemplo: S1).\n\nS1 - Comando não funciona\nS2 - Comando andando sozinho\nS3 - Botões não funcionam\nS4 - Fliperama não liga\nS5 - Como alterar configurações dos botões\nS6 - Como adicionar mais jogos\nS7 - Como instalar um controle adicional\nS8 - Guias e Manuais\n\nPara voltar ao menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["4"],
+      "reply": "Que ótimo! Para finalizar sua compra, digite *C + o número* da opção:\n\nC1 - Comprar Online (Mercado Livre / Shopee)\nC2 - Finalizar com Atendente (Entrega Expressa)",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["5", "atendente", "falar com alguem", "humano", "falar com atendente"],
+      "reply": "Nossos especialistas já foram notificados e logo irão te responder no WhatsApp (11) 97898-4413.\n\n*O assistente virtual será pausado para não atrapalhar a conversa.* Para reativá-lo a qualquer momento, basta digitar *menu*. ??",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["c1", "comprar online"],
+      "reply": "Perfeito! Você pode comprar com toda a segurança em nossas lojas oficiais:\n\n?? *Mercado Livre:* https://lista.mercadolivre.com.br/pagina/fightarcade\n??? *Shopee:* https://shopee.com.br/laradecor\n\nDigite *menu* se precisar de algo mais.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["c2", "finalizar com atendente"],
+      "reply": "Ótima escolha! Comprando diretamente conosco (WhatsApp *11 98812-1976*), temos vantagens como produção em 3-4 horas e entrega rápida por motoboy. Nossos especialistas já foram notificados.\n\n*O assistente virtual será pausado para não atrapalhar.* Para reativá-lo, basta digitar *menu*. ??",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["s1"],
+      "reply": "Ok, para *comando que não funciona*:\n1. Verifique os fios na parte traseira, algum pode ter soltado.\n2. Com o fliperama ligado, veja se a placa principal tem um LED aceso.\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s2"],
+      "reply": "Certo, para *comando andando sozinho*: se for MECÂNICO, uma micro-switch pode estar desalinhada. Se for ÓPTICO, pode ser interferência de luz. Nosso vídeo manual mostra como ajustar: www.fightarcade.com.br/videomanual\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s3"],
+      "reply": "Ok, se os *botões não funcionam*, geralmente é um fio solto. Abra a tampa traseira com cuidado e verifique a conexão na placa 'zero delay'. O vídeo manual pode te ajudar.\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s4"],
+      "reply": "Se o *fliperama não liga*, primeiro teste a tomada e o cabo. Se suspeita da fonte, peça para 'falar com um atendente' (opção 5 do menu).\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s5"],
+      "reply": "Para *alterar a configuração dos botões*, você deve fazer isso dentro de cada jogo. Nosso guia mostra como: https://sl1nk.com/alterarbotoesdentrodojogo\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s6"],
+      "reply": "Sim, é possível *adicionar ou remover jogos*. Temos um tutorial completo: https://sl1nk.com/adicionarouremoverjogos. *Atenção:* Se feito de forma incorreta, pode danificar o sistema.\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s7"],
+      "reply": "Para *instalar e configurar um controle adicional*, siga nosso guia passo a passo: https://sl1nk.com/configurarcontrolesnovos\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["s8"],
+      "reply": "Claro! Nossos guias principais são:\n\n?? *Manual em Texto:* https://l1nq.com/manualfightarcade\n?? *Manual em Vídeo:* www.fightarcade.com.br/videomanual\n\nPara voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["placas", "componentes", "desempenho", "lag", "pico", "sanwa", "zero delay"],
+      "reply": "Você está procurando por máxima performance! Nossos controles são configurados com as melhores peças:\n\n- *Placa Pico (RP2040):* O coração dos nossos controles. Latência de menos de 1 milissegundo (input lag), ideal para competição. Mais detalhes: https://www.fightarcade.com.br/pico1/\n- *Comando Óptico vs. Mecânico:* O comando mecânico usa peças físicas (micro-switches). O óptico usa sensores de luz, garantindo mais precisão e durabilidade.\n- *Componentes Premium:* Oferecemos peças de marcas como Sanwa e Seimitsu. Entre em contato com um atendente para um orçamento.\n\nPosso ajudar com algo mais?",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["pagamento", "pagar", "parcelamento", "pix", "boleto", "cartao"],
+      "reply": "Aceitamos Cartão de Crédito (parcelado em até 12x), PIX (geralmente com desconto) e Boleto Bancário. Posso ajudar com algo mais?",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["garantia", "devolucao", "defeito", "arrependimento", "troca"],
+      "reply": "Oferecemos 1 ano de garantia para nossas placas controladoras e 90 dias para os demais componentes contra defeitos de fabricação. A devolução por arrependimento é de até 7 dias corridos após o recebimento. Posso ajudar com algo mais?",
+      "pause_bot_after_reply": false
+    }
+  ]
+}

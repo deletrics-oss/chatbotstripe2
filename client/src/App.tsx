@@ -21,6 +21,8 @@ import BehaviorEditor from "@/pages/behavior-editor";
 import Billing from "@/pages/billing";
 import Settings from "@/pages/settings";
 import Broadcast from "@/pages/broadcast";
+import WebAssistants from "@/pages/web-assistants";
+import PublicChat from "@/pages/public-chat";
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -48,11 +50,23 @@ function AppContent() {
       <Switch>
         <Route path="/register" component={Register} />
         <Route path="/login" component={Login} />
+        <Route path="/chat/:slug" component={PublicChat} />
         <Route path="/" component={Landing} />
         <Route component={Landing} />
       </Switch>
     );
   }
+
+  // Check for public chat route even if authenticated (to allow testing)
+  if (window.location.pathname.startsWith('/chat/')) {
+    return (
+      <Switch>
+        <Route path="/chat/:slug" component={PublicChat} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -74,6 +88,8 @@ function AppContent() {
               <Route path="/behaviors/new" component={BehaviorEditor} />
               <Route path="/behaviors/:id" component={BehaviorEditor} />
               <Route path="/behaviors" component={Behaviors} />
+              <Route path="/behaviors" component={Behaviors} />
+              <Route path="/web-assistants" component={WebAssistants} />
               <Route path="/broadcast" component={Broadcast} />
               <Route path="/billing" component={Billing} />
               <Route path="/settings" component={Settings} />

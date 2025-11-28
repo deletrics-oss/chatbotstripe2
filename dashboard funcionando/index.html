@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatBot Host v2.5</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1e3c72, #2a5298); color: #fff; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header p { font-size: 1.1rem; opacity: 0.9; }
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
+        .login-card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 15px; padding: 40px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); width: 100%; max-width: 400px; }
+        .login-card h2 { text-align: center; margin-bottom: 30px; font-size: 1.8rem; }
+        .form-group { margin-bottom: 20px; }
+        .form-group input { width: 100%; padding: 12px; border: none; border-radius: 8px; background: rgba(255,255,255,0.9); color: #333; font-size: 1rem; }
+        .btn-login { width: 100%; padding: 12px; background: linear-gradient(45deg, #667eea, #764ba2); border: none; border-radius: 8px; color: white; font-size: 1.1rem; cursor: pointer; transition: transform 0.2s; }
+        .btn-login:hover { transform: translateY(-2px); }
+        .error-message { color: #ff6b6b; text-align: center; margin-top: 15px; }
+        .hidden { display: none !important; }
+        .main-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 15px; padding: 25px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); }
+        .card h2 { margin-bottom: 20px; font-size: 1.4rem; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 10px; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .status-item { display: flex; align-items: center; gap: 10px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .status-dot.green { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
+        .status-dot.red { background: #f44336; box-shadow: 0 0 10px #f44336; }
+        .status-dot.yellow { background: #ffeb3b; box-shadow: 0 0 10px #ffeb3b; }
+        .status-dot.grey { background: #9e9e9e; }
+        .device-input { display: flex; gap: 10px; margin-bottom: 20px; }
+        .device-input input { flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.9); color: #333; }
+        .btn-add { padding: 10px 20px; background: linear-gradient(45deg, #4CAF50, #45a049); border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; }
+        .device-list { list-style: none; }
+        .device-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; }
+        .device-list li.selected { background: rgba(255,255,255,0.2); }
+        .device-info { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; }
+        .device-actions { display: flex; gap: 5px; }
+        .btn-action { padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+        .qr-container { text-align: center; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+        .qr-container img { max-width: 200px; border-radius: 10px; }
+        .progress-container { margin: 20px 0; }
+        .progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(45deg, #4CAF50, #45a049); width: 0%; transition: width 0.3s ease; }
+        .conversation-list { list-style: none; max-height: 300px; overflow-y: auto; }
+        .conversation-list li { padding: 10px; margin-bottom: 5px; background: rgba(255,255,255,0.05); border-radius: 8px; cursor: pointer; }
+        .conversation-list li.selected { background: rgba(255,255,255,0.2); }
+        .chat-container { height: 400px; display: flex; flex-direction: column; }
+        .message-container { flex: 1; overflow-y: auto; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; margin-bottom: 15px; }
+        
+        /* === ESTILOS DO CHAT ESTILO WHATSAPP === */
+        .message {
+            padding: 8px 12px;
+            border-radius: 10px; 
+            margin-bottom: 10px;
+            max-width: 75%; /* Limita a largura do balão */
+            word-wrap: break-word; /* Quebra palavras longas */
+            position: relative; /* Para o timestamp */
+            clear: both; /* Garante que um flutuante não interfira no outro */
+            line-height: 1.4;
+        }
+        .message span.timestamp {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            display: block; /* Fica em linha separada */
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        /* Mensagens recebidas (Cliente, BOT, SYSTEM) - Alinhadas à ESQUERDA */
+        .message.user, .message.bot, .message.system {
+            background-color: #262D31; /* Cor mais escura para recebidas */
+            float: left; /* Alinha à esquerda */
+            margin-right: auto; /* Empurra para a esquerda */
+            border-top-left-radius: 0; /* Canto reto para parecer balão */
+        }
+        
+        /* Mensagens enviadas (ADMIN) - Alinhadas à DIREITA */
+        .message.admin {
+            background-color: #056162; /* Verde WhatsApp para enviadas */
+            float: right; /* Alinha à direita */
+            margin-left: auto; /* Empurra para a direita */
+            border-top-right-radius: 0; /* Canto reto para parecer balão */
+        }
+        /* === FIM DOS ESTILOS DO CHAT === */
+
+        .reply-container { display: flex; gap: 10px; }
+        .reply-container input { flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.9); color: #333; }
+        .logic-container textarea { width: 100%; height: 150px; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.9); color: #333; resize: vertical; margin-bottom: 10px; }
+        .logic-container input { width: 100%; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.9); color: #333; margin-bottom: 10px; }
+        .btn-logic { width: 100%; padding: 10px; background: linear-gradient(45deg, #FF9800, #F57C00); border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+        .logic-list { list-style: none; }
+        .logic-list li { display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 5px; background: rgba(255,255,255,0.05); border-radius: 5px; }
+        .log-container { height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; font-family: monospace; font-size: 0.9rem; }
+        .log-line { margin-bottom: 5px; }
+        .log-line.ERROR { color: #ff6b6b; }
+        .log-line.WARN { color: #ffd93d; }
+        .log-line.INFO { color: #6bcf7f; }
+        .right-panel { display: flex; flex-direction: column; gap: 20px; }
+        .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        code { background-color: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 4px; font-family: monospace;} /* Estilo para o comando /ia */
+    </style>
+</head>
+<body>
+    <div id="login-screen">
+        <div class="container">
+            <div class="header">
+                <h1>ChatBot Host v2.5</h1>
+                <p>Sistema de Gerenciamento de Bots WhatsApp</p>
+            </div>
+            <div class="login-container">
+                <div class="login-card">
+                    <h2>Login</h2>
+                    <div class="form-group">
+                        <input type="text" id="username" placeholder="Usuário" value="admin">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="password" placeholder="Senha" value="suporte@1">
+                    </div>
+                    <button id="loginBtn" class="btn-login">Entrar</button>
+                    <div id="login-error" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        <div class="container">
+            <div class="header">
+                <h1>ChatBot Host v2.5</h1>
+                <p>Dashboard de Gerenciamento</p>
+            </div>
+            
+            <div class="main-grid">
+                <div class="left-panel">
+                    <div class="card">
+                        <h2>Status do Sistema</h2>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <span id="status-gemini" class="status-dot red"></span>
+                                <span>Gemini AI</span>
+                            </div>
+                            <div class="status-item">
+                                <span id="status-websocket" class="status-dot red"></span>
+                                <span>WebSocket</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Dispositivos WhatsApp</h2>
+                        <div class="device-input">
+                            <input type="text" id="newSessionId" placeholder="Nome do Dispositivo (ex: vendas)">
+                            <button id="addDeviceBtn" class="btn-add">Adicionar Dispositivo</button>
+                        </div>
+                        <ul id="deviceList" class="device-list"></ul>
+                    </div>
+
+                    <div class="card">
+                        <h2 id="authTitle">Autenticação WhatsApp</h2>
+                        <div id="qr-progress-bar-container" class="progress-container hidden">
+                            <div class="progress-bar">
+                                <div id="qr-progress-bar" class="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div id="qrCodeContainer" class="qr-container">
+                            <p>Selecione um dispositivo na lista.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-panel">
+                    <div class="card">
+                        <h2>Conversas em Tempo Real</h2>
+                        <ul id="conversationList" class="conversation-list">
+                            <li style="text-align: center; opacity: 0.7;">Selecione uma conversa para visualizar as mensagens</li>
+                        </ul>
+                    </div>
+
+                    <div class="card chat-container">
+                        <h2 id="chatHeader">Chat</h2>
+                        <div id="messageContainer" class="message-container">
+                            <div style="text-align: center; opacity: 0.7; margin-top: 50px;">Nenhuma conversa selecionada</div>
+                        </div>
+                        <div class="reply-container">
+                            <input type="text" id="replyInput" placeholder="Digite sua resposta...">
+                            <button id="sendReplyBtn" class="btn-add">Enviar Resposta</button>
+                        </div>
+                    </div>
+
+                    <div class="bottom-grid">
+                        <div class="card logic-container">
+                            <h2>Base de Conhecimento (Lógicas)</h2>
+                            <input type="text" id="logicFileName" placeholder="Nome do arquivo (ex: rules.json ou ia-prompt.txt)">
+                            <textarea id="logicContent" placeholder="Cole ou digite o conteúdo do arquivo aqui..."></textarea>
+                            <button id="saveLogicBtn" class="btn-logic">Salvar Lógica</button>
+                            <ul id="logicList" class="logic-list"></ul>
+
+                            <hr style="border-color: rgba(255,255,255,0.2); margin: 20px 0;">
+                            <h3>🤖 Como Usar a Inteligência Artificial (Opcional)</h3>
+                            <p style="font-size: 0.9rem; opacity: 0.9; margin-top: 10px; margin-bottom: 15px;">
+                                Seu bot agora pode usar a IA do Google (Gemini) para responder perguntas de forma mais flexível, mas <strong>somente quando o cliente pedir</strong>.
+                            </p>
+                            <ul style="font-size: 0.9rem; opacity: 0.9; list-style-position: inside; margin-left: 10px;">
+                                <li><strong>Ativação:</strong> O cliente precisa iniciar a mensagem com o comando <code>/ia</code> (Ex: <code>/ia qual o prazo de entrega?</code>).</li>
+                                <li><strong>Funcionamento Padrão:</strong> Se o comando <code>/ia</code> não for usado, o bot seguirá <strong>apenas</strong> as regras do arquivo <code>rules.json</code> (incluindo a resposta padrão). A IA não será chamada.</li>
+                                <li><strong>Personalidade (Obrigatório):</strong> Para o comando <code>/ia</code> funcionar, você <strong>precisa</strong> criar um arquivo chamado <code>ia-prompt.txt</code> na pasta de Lógicas deste dispositivo. Ele define quem a IA é (Ex: "Assistente da Fight Arcade").</li>
+                                <li><strong>Conhecimento Específico (Opcional):</strong> Se existir um arquivo <code>knowledge.txt</code>, a IA usará as informações dele para responder perguntas sobre dados específicos da sua empresa (preços, modelos, etc.).</li>
+                            </ul>
+                            </div>
+
+                        <div class="card">
+                            <h2>Logs do Servidor</h2>
+                            <div id="logContainer" class="log-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://72.60.246.250:3012/api";
+        const WS_URL = "ws://72.60.246.250:3012";
+        
+        const loginScreen = document.getElementById("login-screen");
+        const mainApp = document.getElementById("main-app");
+        const loginBtn = document.getElementById("loginBtn");
+        const usernameInput = document.getElementById("username");
+        const passwordInput = document.getElementById("password");
+        const loginError = document.getElementById("login-error");
+        
+        const statusWebsocket = document.getElementById("status-websocket");
+        const statusGemini = document.getElementById("status-gemini");
+        
+        const addDeviceBtn = document.getElementById("addDeviceBtn");
+        const newSessionIdInput = document.getElementById("newSessionId");
+        const deviceList = document.getElementById("deviceList");
+        
+        const qrCodeContainer = document.getElementById("qrCodeContainer");
+        const authTitle = document.getElementById("authTitle");
+        const qrProgressBar = document.getElementById("qr-progress-bar");
+        const qrProgressBarContainer = document.getElementById("qr-progress-bar-container");
+        
+        const conversationList = document.getElementById("conversationList");
+        const chatHeader = document.getElementById("chatHeader");
+        const messageContainer = document.getElementById("messageContainer");
+        const replyInput = document.getElementById("replyInput");
+        const sendReplyBtn = document.getElementById("sendReplyBtn");
+        
+        const saveLogicBtn = document.getElementById("saveLogicBtn");
+        const logicFileNameInput = document.getElementById("logicFileName");
+        const logicContentInput = document.getElementById("logicContent");
+        const logicList = document.getElementById("logicList");
+        
+        const logContainer = document.getElementById("logContainer");
+        
+        let activeSessions = {};
+        let conversations = {};
+        let selectedSessionId = null;
+        let selectedConversationId = null;
+
+        loginBtn.addEventListener("click", async () => {
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    sessionStorage.setItem("isAuthenticated", "true");
+                    loginScreen.classList.add("hidden");
+                    mainApp.classList.remove("hidden");
+                    initializeApp();
+                } else {
+                    loginError.textContent = data.message || "Erro no login.";
+                }
+            } catch (error) {
+                loginError.textContent = "Erro de conexão com o servidor.";
+            }
+        });
+
+        function checkAuth() {
+            if (sessionStorage.getItem("isAuthenticated") === "true") {
+                loginScreen.classList.add("hidden");
+                mainApp.classList.remove("hidden");
+                initializeApp();
+            }
+        }
+
+        async function initializeApp() {
+            connectWebSocket();
+            checkSystemHealth();
+            try {
+                const sessions = await fetch(`${API_URL}/sessions`).then(res => res.json());
+                activeSessions = {};
+                sessions.forEach(s => {
+                    activeSessions[s.id] = { status: s.status };
+                });
+                renderDeviceList();
+            } catch (error) {
+                console.error("Erro ao carregar sessões.", error);
+            }
+        }
+
+        function connectWebSocket() {
+            const ws = new WebSocket(WS_URL);
+            ws.onopen = () => {
+                statusWebsocket.className = "status-dot green";
+                addSystemLog("🔌 Conectado ao WebSocket");
+            };
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "log") {
+                    addSystemLog(data.message, data.level);
+                } else if (data.type === "new_message") {
+                    handleNewMessage(data);
+                } else if (data.type === "status_update") {
+                    if (activeSessions[data.sessionId]) {
+                        activeSessions[data.sessionId].status = data.status;
+                        renderDeviceList();
+                        if (data.sessionId === selectedSessionId) {
+                            updateAuthCardStatus(data.status);
+                        }
+                    }
+                } else if (data.type === "session_destroyed") {
+                    if (activeSessions[data.sessionId]) {
+                        activeSessions[data.sessionId].status = "OFFLINE";
+                        renderDeviceList();
+                        // Se a sessão destruída era a selecionada, limpa a tela
+                        if(selectedSessionId === data.sessionId) {
+                            selectedSessionId = null;
+                            selectedConversationId = null;
+                            authTitle.textContent = "Autenticação WhatsApp";
+                            qrCodeContainer.innerHTML = "<p>Selecione um dispositivo na lista.</p>";
+                            logicList.innerHTML = "";
+                            conversationList.innerHTML = '<li style="text-align: center; opacity: 0.7;">Selecione uma conversa para visualizar as mensagens</li>';
+                            messageContainer.innerHTML = '<div style="text-align: center; opacity: 0.7; margin-top: 50px;">Nenhuma conversa selecionada</div>';
+                            chatHeader.textContent = "Chat";
+                        }
+                    }
+                }
+            };
+            ws.onclose = () => {
+                statusWebsocket.className = "status-dot red";
+                addSystemLog("❌ WebSocket desconectado", "ERROR");
+                setTimeout(connectWebSocket, 5000); // Tenta reconectar após 5 segundos
+            };
+            ws.onerror = (error) => { // Adiciona um log de erro
+                statusWebsocket.className = "status-dot red";
+                addSystemLog("❌ Erro no WebSocket: " + error.message, "ERROR");
+            };
+        }
+
+        function addSystemLog(message, level = "INFO") {
+            const logLine = document.createElement("div");
+            logLine.className = `log-line ${level}`;
+            logLine.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.prepend(logLine); // Adiciona no topo
+            
+            // Manter apenas os últimos 100 logs
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        async function checkSystemHealth() {
+            try {
+                const res = await fetch(`${API_URL}/health/gemini`);
+                const data = await res.json();
+                statusGemini.className = `status-dot ${data.status === "OPERATIONAL" ? "green" : "red"}`;
+                statusGemini.title = data.message || data.status;
+            } catch {
+                statusGemini.className = "status-dot red";
+                statusGemini.title = "Servidor backend inacessível.";
+            }
+        }
+
+        function renderDeviceList() {
+            deviceList.innerHTML = "";
+            // Pega os IDs e ordena alfabeticamente para consistência
+            const sortedSessionIds = Object.keys(activeSessions).sort();
+
+            sortedSessionIds.forEach(sessionId => {
+                const li = document.createElement("li");
+                if (sessionId === selectedSessionId) li.classList.add("selected");
+                
+                const infoDiv = document.createElement("div");
+                infoDiv.className = "device-info";
+                infoDiv.onclick = () => selectDevice(sessionId);
+                
+                const statusDot = document.createElement("span");
+                statusDot.className = "status-dot";
+                const status = activeSessions[sessionId].status;
+                if (status === "READY") statusDot.classList.add("green");
+                else if (status === "QR_PENDING") statusDot.classList.add("yellow");
+                else statusDot.classList.add("grey"); // Inclui INITIALIZING, OFFLINE, ERROR, DESTROYING
+                
+                infoDiv.appendChild(statusDot);
+                infoDiv.appendChild(document.createTextNode(sessionId));
+                
+                const actionsDiv = document.createElement("div");
+                actionsDiv.className = "device-actions";
+                
+                // Botão Reiniciar só aparece se não estiver offline ou destruindo
+                if (status !== "OFFLINE" && status !== "DESTROYING") {
+                    const restartBtn = document.createElement("button");
+                    restartBtn.className = "btn-action";
+                    restartBtn.innerHTML = "🔄";
+                    restartBtn.title = "Reiniciar";
+                    restartBtn.style.background = "#FF9800";
+                    restartBtn.style.color = "white";
+                    restartBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        restartDevice(sessionId);
+                    };
+                    actionsDiv.appendChild(restartBtn);
+                }
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "btn-action";
+                deleteBtn.innerHTML = "X";
+                deleteBtn.title = "Remover";
+                deleteBtn.style.background = "#f44336";
+                deleteBtn.style.color = "white";
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteDevice(sessionId);
+                };
+                
+                actionsDiv.appendChild(deleteBtn);
+                
+                li.appendChild(infoDiv);
+                li.appendChild(actionsDiv);
+                deviceList.appendChild(li);
+            });
+        }
+
+
+        async function selectDevice(sessionId) {
+            selectedSessionId = sessionId;
+            authTitle.textContent = `Autenticação: ${sessionId}`;
+            qrCodeContainer.innerHTML = "<p>Verificando status...</p>";
+            // Limpa conversas e chat ao trocar de dispositivo
+            selectedConversationId = null;
+            conversations = {}; // Limpa o objeto de conversas
+            renderConversationList(); // Atualiza a lista (vai mostrar vazia ou a mensagem padrão)
+            messageContainer.innerHTML = '<div style="text-align: center; opacity: 0.7; margin-top: 50px;">Nenhuma conversa selecionada</div>';
+            chatHeader.textContent = "Chat";
+
+            renderDeviceList(); // Re-renderiza a lista para marcar o item selecionado
+            await fetchAndDisplayLogics(sessionId);
+            updateAuthCardStatus(activeSessions[sessionId]?.status || "OFFLINE");
+        }
+
+
+        function updateAuthCardStatus(status) {
+            switch (status) {
+                case "QR_PENDING":
+                    showQRProgress();
+                    break;
+                case "READY":
+                    qrCodeContainer.innerHTML = "<h2 style=\"color: #4CAF50;\">✅ Conectado</h2>";
+                    qrProgressBarContainer.classList.add("hidden");
+                    break;
+                case "ERROR":
+                    qrCodeContainer.innerHTML = "<h2 style=\"color: #f44336;\">❌ Erro na Conexão</h2>";
+                    qrProgressBarContainer.classList.add("hidden");
+                    break;
+                 case "INITIALIZING": // Adiciona um status visual para inicializando
+                    qrCodeContainer.innerHTML = "<p>⏳ Inicializando...</p>";
+                    qrProgressBarContainer.classList.add("hidden");
+                    break;
+                default: // Inclui OFFLINE, DESTROYING
+                    qrCodeContainer.innerHTML = `<p>Status: ${status || "Offline"}</p>`;
+                    qrProgressBarContainer.classList.add("hidden");
+            }
+        }
+
+        function showQRProgress() {
+            qrCodeContainer.innerHTML = ""; // Limpa antes de mostrar a barra
+            qrProgressBarContainer.classList.remove("hidden");
+            qrProgressBar.style.width = "0%";
+            qrProgressBar.style.transition = "none"; // Reseta a transição
+            
+            // Força reflow para garantir que a transição funcione
+            void qrProgressBar.offsetWidth; 
+            
+            // Inicia a animação da barra
+            qrProgressBar.style.transition = "width 4s ease-out"; 
+            qrProgressBar.style.width = "100%";
+            
+            // Busca o QR code DEPOIS de iniciar a barra
+            fetchQRCode(selectedSessionId);
+        }
+
+        async function fetchQRCode(sessionId) {
+            try {
+                // Adiciona um timestamp para evitar cache
+                const res = await fetch(`${API_URL}/sessions/${sessionId}/qr?t=${Date.now()}`);
+                const data = await res.json();
+                
+                // Espera a barra terminar antes de mostrar o QR (ou mensagem)
+                setTimeout(() => {
+                    // Verifica se AINDA estamos esperando o QR Code (status pode ter mudado)
+                    if (selectedSessionId === sessionId && activeSessions[sessionId]?.status === "QR_PENDING") {
+                        if (data.qrCodeUrl) {
+                            qrCodeContainer.innerHTML = `<img src="${data.qrCodeUrl}" alt="QR Code">`;
+                        } else {
+                            qrCodeContainer.innerHTML = "<p>Aguardando QR Code... (Recarregando em breve)</p>";
+                            // Tenta buscar de novo se não veio
+                            setTimeout(() => fetchQRCode(sessionId), 5000); 
+                        }
+                    }
+                     // Esconde a barra DEPOIS de mostrar o QR ou a mensagem
+                    qrProgressBarContainer.classList.add("hidden");
+                }, 4000); // Tempo da animação da barra
+
+            } catch (error) {
+                 // Esconde a barra em caso de erro também
+                qrProgressBarContainer.classList.add("hidden");
+                qrCodeContainer.innerHTML = "<p style=\"color: #f44336\">Erro ao carregar QR Code.</p>";
+            }
+        }
+
+
+        addDeviceBtn.addEventListener("click", async () => {
+            const sessionId = newSessionIdInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''); // Limpa e valida o nome
+            if (!sessionId) {
+                 alert("Por favor, insira um nome válido para o dispositivo (letras, números, - ou _).");
+                 return;
+             }
+            if (activeSessions[sessionId]) {
+                 alert("Já existe um dispositivo com esse nome.");
+                 return;
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/sessions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sessionId })
+                });
+
+                if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.message || "Falha ao criar sessão no servidor.");
+                 }
+                
+                activeSessions[sessionId] = { status: "INITIALIZING" };
+                newSessionIdInput.value = "";
+                renderDeviceList();
+                selectDevice(sessionId); // Seleciona o novo dispositivo
+            } catch (error) {
+                console.error("Erro ao criar sessão:", error);
+                alert("Erro ao adicionar dispositivo: " + error.message);
+            }
+        });
+
+        // =============================================
+        // FUNÇÃO handleNewMessage ATUALIZADA
+        // =============================================
+        function handleNewMessage(msg) {
+             // Determina o ID da conversa corretamente, mesmo para mensagens enviadas
+             const conversationId = msg.from === "ADMIN" || msg.from === "BOT" || msg.from === "SYSTEM" 
+                                   ? msg.to 
+                                   : msg.from;
+             
+             // Ignora se não for da sessão selecionada ou não tiver ID
+             if (!conversationId || msg.sessionId !== selectedSessionId) {
+                 // console.log("Mensagem ignorada - outra sessão ou sem ID:", msg.sessionId, conversationId); // Para debug
+                 return;
+             }
+            
+            if (!conversations[conversationId]) {
+                conversations[conversationId] = { messages: [] };
+            }
+            // Adiciona a nova mensagem no início (mais recente)
+            conversations[conversationId].messages.unshift(msg); 
+            // Limita a 100 mensagens por conversa
+            if (conversations[conversationId].messages.length > 100) {
+                 conversations[conversationId].messages.pop(); // Remove a mais antiga
+            }
+            
+            renderConversationList(); // Atualiza a lista para colocar a conversa no topo
+            // Se a conversa da mensagem for a selecionada, atualiza o chat
+            if (conversationId === selectedConversationId) {
+                renderMessages(conversationId);
+            }
+        }
+        // =============================================
+
+        function renderConversationList() {
+            conversationList.innerHTML = "";
+             // Mensagem padrão se não houver conversas para a sessão selecionada
+             if (Object.keys(conversations).length === 0) {
+                 conversationList.innerHTML = '<li style="text-align: center; opacity: 0.7;">Nenhuma conversa ainda.</li>';
+                 return;
+             }
+
+            // Ordena as conversas pela mensagem mais recente
+            const sortedIds = Object.keys(conversations).sort((a, b) => {
+                const lastMsgA = conversations[a].messages[0]?.timestamp || 0;
+                const lastMsgB = conversations[b].messages[0]?.timestamp || 0;
+                // Compara como datas para garantir a ordem correta
+                return new Date(lastMsgB) - new Date(lastMsgA); 
+            });
+
+            sortedIds.forEach(id => {
+                 const li = document.createElement("li");
+                li.textContent = id.split("@")[0]; // Mostra só o número
+                li.dataset.conversationId = id;
+                if (id === selectedConversationId) li.classList.add("selected");
+                li.onclick = () => selectConversation(id);
+                conversationList.appendChild(li);
+            });
+        }
+
+
+        // =============================================
+        // FUNÇÃO renderMessages ATUALIZADA
+        // =============================================
+        function renderMessages(id) {
+            messageContainer.innerHTML = ""; // Limpa mensagens antigas
+            if (!conversations[id]) {
+                 messageContainer.innerHTML = '<div style="text-align: center; opacity: 0.7; margin-top: 50px;">Erro: Conversa não encontrada.</div>';
+                 return;
+             }
+            
+            chatHeader.textContent = `Conversa com: ${id.split("@")[0]}`;
+            
+            // Pega as mensagens (já estão da mais nova para mais antiga) e inverte para exibir na ordem correta
+            const messagesToDisplay = [...conversations[id].messages].reverse(); 
+
+            messagesToDisplay.forEach(msg => {
+                const div = document.createElement("div");
+                div.classList.add("message");
+                
+                let authorType = "user"; // Assume que é do cliente
+                // Verifica quem enviou para aplicar o estilo correto
+                if (msg.from === "ADMIN") {
+                    authorType = "admin"; // Mensagem enviada pelo dashboard
+                } else if (msg.from === "BOT") {
+                    authorType = "bot"; // Mensagem automática do bot
+                } else if (msg.from === "SYSTEM") {
+                    authorType = "system"; // Mensagem do sistema (Ex: /status)
+                } 
+                // Se msg.from não for nenhum desses, assume-se que é do cliente ('user')
+
+                div.classList.add(authorType); // Adiciona a classe para estilo e alinhamento
+                
+                div.textContent = msg.body; // Adiciona o texto da mensagem
+
+                // Adiciona o Timestamp (simples, sem formatação complexa por enquanto)
+                const timeSpan = document.createElement("span");
+                timeSpan.className = "timestamp";
+                timeSpan.textContent = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--";
+                div.appendChild(timeSpan);
+
+
+                messageContainer.appendChild(div); // Adiciona o balão completo ao container
+            });
+            
+            // Rola para a mensagem mais recente após renderizar
+            messageContainer.scrollTop = messageContainer.scrollHeight; 
+        }
+        // =============================================
+
+
+        // =============================================
+        // EVENT LISTENER sendReplyBtn ATUALIZADO (Envio Otimista)
+        // =============================================
+        sendReplyBtn.addEventListener("click", async () => {
+            const text = replyInput.value.trim();
+            if (!text || !selectedConversationId || !selectedSessionId) return;
+
+            // --- Envio Otimista ---
+            // 1. Cria a mensagem localmente ANTES de enviar
+             const optimisticMsg = {
+                 sessionId: selectedSessionId,
+                 from: "ADMIN", // Marca como vindo do admin
+                 to: selectedConversationId, // Destino é a conversa selecionada
+                 body: text,
+                 timestamp: new Date().toISOString() // Hora atual
+             };
+             
+             // 2. Adiciona à lista de mensagens local e re-renderiza
+             if (!conversations[selectedConversationId]) {
+                 conversations[selectedConversationId] = { messages: [] };
+             }
+             conversations[selectedConversationId].messages.unshift(optimisticMsg);
+             if (conversations[selectedConversationId].messages.length > 100) {
+                 conversations[selectedConversationId].messages.pop();
+             }
+             renderMessages(selectedConversationId); // Atualiza a tela imediatamente
+             renderConversationList(); // Atualiza a ordem da lista
+             replyInput.value = ""; // Limpa o campo
+            // --- Fim do Envio Otimista ---
+
+            // 3. Envia a mensagem para o servidor (em segundo plano)
+            try {
+                const response = await fetch(`${API_URL}/sessions/${selectedSessionId}/send`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ number: selectedConversationId, text })
+                });
+                 if (!response.ok) {
+                     // Se falhar, talvez adicionar um indicador de erro na mensagem otimista? (Opcional)
+                     console.error("Erro ao enviar mensagem:", await response.text());
+                     addSystemLog(`Falha ao enviar para ${selectedConversationId.split('@')[0]}`, "ERROR");
+                     // Poderia remover a mensagem otimista ou marcá-la como falha aqui
+                 } else {
+                      addSystemLog(`Mensagem enviada para ${selectedConversationId.split('@')[0]}`, "INFO");
+                 }
+            } catch (error) {
+                console.error("Erro de rede ao enviar mensagem:", error);
+                 addSystemLog(`Erro de rede ao enviar para ${selectedConversationId.split('@')[0]}`, "ERROR");
+                 // Poderia remover a mensagem otimista ou marcá-la como falha aqui
+            }
+        });
+        // =============================================
+
+
+        saveLogicBtn.addEventListener("click", async () => {
+            const fileName = logicFileNameInput.value.trim();
+            const content = logicContentInput.value.trim();
+            
+            if (!selectedSessionId || !fileName || !content) {
+                alert("Selecione um dispositivo, preencha o Nome do Arquivo e o Conteúdo da Lógica.");
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/sessions/${selectedSessionId}/logics/text`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fileName, content })
+                });
+                 if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.message || "Falha ao salvar lógica no servidor.");
+                 }
+                
+                logicFileNameInput.value = "";
+                logicContentInput.value = "";
+                await fetchAndDisplayLogics(selectedSessionId); // Atualiza a lista
+                addSystemLog(`Lógica "${fileName}" salva para ${selectedSessionId}.`, "INFO");
+
+            } catch (error) {
+                console.error("Erro ao salvar lógica:", error);
+                 alert("Erro ao salvar lógica: " + error.message);
+            }
+        });
+
+        async function fetchAndDisplayLogics(sessionId) {
+            logicList.innerHTML = ""; // Limpa a lista atual
+            if (!sessionId) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/sessions/${sessionId}/logics`);
+                 if (!response.ok) {
+                     throw new Error("Falha ao buscar lógicas do servidor.");
+                 }
+                const files = await response.json();
+
+                // Adiciona cada arquivo à lista
+                files.forEach(fileName => {
+                    const li = document.createElement("li");
+                    li.textContent = fileName;
+                    
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "X";
+                    deleteBtn.className = "btn-action";
+                    deleteBtn.style.background = "#f44336";
+                    deleteBtn.style.color = "white";
+                    deleteBtn.title = "Deletar Lógica";
+                    deleteBtn.onclick = () => deleteLogic(sessionId, fileName);
+                    
+                    li.appendChild(deleteBtn);
+                    logicList.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Erro ao carregar lógicas:", error);
+                // Poderia mostrar uma mensagem de erro na UI
+            }
+        }
+
+        async function deleteLogic(sessionId, fileName) {
+            if (!confirm(`Tem certeza que deseja deletar o arquivo de lógica "${fileName}"?`)) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/sessions/${sessionId}/logics/${fileName}`, {
+                    method: "DELETE"
+                });
+                 if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.message || "Falha ao deletar lógica no servidor.");
+                 }
+                await fetchAndDisplayLogics(sessionId); // Atualiza a lista
+                 addSystemLog(`Lógica "${fileName}" deletada para ${selectedSessionId}.`, "INFO");
+
+            } catch (error) {
+                console.error("Erro ao deletar lógica:", error);
+                 alert("Erro ao deletar lógica: " + error.message);
+            }
+        }
+
+        async function deleteDevice(sessionId) {
+            if (!confirm(`Remover "${sessionId}"? Isso também removerá os arquivos de lógica associados!`)) return;
+            
+            try {
+                 const response = await fetch(`${API_URL}/sessions/${sessionId}`, {
+                    method: "DELETE"
+                });
+                if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.message || "Falha ao deletar dispositivo no servidor.");
+                 }
+                
+                delete activeSessions[sessionId];
+                if (selectedSessionId === sessionId) {
+                    selectedSessionId = null;
+                    authTitle.textContent = "Autenticação";
+                    qrCodeContainer.innerHTML = "<p>Selecione um dispositivo.</p>";
+                    logicList.innerHTML = "";
+                    conversationList.innerHTML = '<li style="text-align: center; opacity: 0.7;">Selecione uma conversa para visualizar as mensagens</li>';
+                    messageContainer.innerHTML = '<div style="text-align: center; opacity: 0.7; margin-top: 50px;">Nenhuma conversa selecionada</div>';
+                    chatHeader.textContent = "Chat";
+                }
+                renderDeviceList();
+                 addSystemLog(`Dispositivo "${sessionId}" removido.`, "INFO");
+
+            } catch (error) {
+                console.error("Erro ao deletar dispositivo:", error);
+                 alert("Erro ao deletar dispositivo: " + error.message);
+            }
+        }
+
+        async function restartDevice(sessionId) {
+            if (!confirm(`Reiniciar "${sessionId}"? Isso pode levar alguns segundos.`)) return;
+            
+            try {
+                addSystemLog(`Reiniciando dispositivo "${sessionId}"...`, "WARN");
+                // Atualiza o status localmente para 'INITIALIZING' para feedback visual
+                if(activeSessions[sessionId]) activeSessions[sessionId].status = "INITIALIZING";
+                renderDeviceList(); // Mostra o status atualizado
+                if(selectedSessionId === sessionId) updateAuthCardStatus("INITIALIZING");
+
+
+                const response = await fetch(`${API_URL}/sessions/${sessionId}/restart`, {
+                    method: "POST"
+                });
+                 if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.message || "Falha ao reiniciar dispositivo no servidor.");
+                 }
+                // Não precisa selecionar de novo, o WebSocket vai atualizar o status eventualmente
+                 addSystemLog(`Comando de reinicio enviado para "${sessionId}". Aguardando reconexão.`, "INFO");
+
+            } catch (error) {
+                console.error("Erro ao reiniciar dispositivo:", error);
+                alert("Erro ao reiniciar dispositivo: " + error.message);
+                 addSystemLog(`Falha ao reiniciar "${sessionId}": ${error.message}`, "ERROR");
+                 // Reverte o status se falhar? Ou espera o WebSocket corrigir?
+                 // Por ora, deixa como está, o WebSocket deve eventualmente reportar erro ou reconectar.
+
+            }
+        }
+
+        // --- Adiciona evento para enviar com Enter ---
+        replyInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendReplyBtn.click(); // Simula o clique no botão
+            }
+        });
+
+
+        // Inicializar aplicação
+        checkAuth();
+        
+        // Adicionar log inicial
+        setTimeout(() => {
+            addSystemLog("[Sistema] Dashboard iniciado.");
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+#=================================================================#
+# ARQUIVO DE CONFIGURAÇÃO DO ASSISTENTE VIRTUAL - FIGHT ARCADE    #
+# VERSÃO: 2.0 - DEFINITIVA - Completa, com Lógica de Prefixos     #
+#                                                                 #
+# NOTA CRÍTICA: A instrução para pausar o bot é:                  #
+# [AÇÃO_DO_SISTEMA]: PAUSAR_CHAT                                  #
+# SUBSTITUA "PAUSAR_CHAT" PELO COMANDO EXATO DA SUA PLATAFORMA.   #
+#=================================================================#
+
+#===============================#
+# 1. REGRAS GERAIS
+#===============================#
+
+### COMANDOS UNIVERSAIS
+- **TRIGGER_KEYWORDS:** oi, olá, eai, tudo bem, menu, início, start, voltar, sair
+- **AÇÃO:** Interromper qualquer fluxo e apresentar o [BLOCO: MENU_PRINCIPAL].
+
+### FILTRO DE GRUPOS (PRIORIDADE MÁXIMA)
+- **REGRA:** Se a mensagem vier de um chat de grupo (contém '@g.us'), IGNORAR COMPLETAMENTE.
+
+### RESPOSTA PARA ENTRADA INVÁLIDA (FALLBACK)
+- **TRIGGER:** O sistema não entende a entrada do usuário.
+- **RESPONSE:** Desculpe, não entendi sua solicitação. Por favor, escolha uma das opções ou digite *menu* para voltar ao início.
+
+#===============================#
+# 2. BLOCOS DE RESPOSTA PRINCIPAIS
+#===============================#
+
+### [BLOCO: MENU_PRINCIPAL]
+- **TRIGGER:** Início da conversa ou um "Comando Universal".
+- **RESPONSE:**
+Olá! ?? Sou seu assistente virtual do Fight Arcade e vou te ajudar a encontrar tudo o que precisa.
+
+Para começarmos, me diga o que você gostaria de fazer:
+
+1?? - Ver modelos e preços
+2?? - Ver opções de estampas
+3?? - Suporte Técnico
+4?? - Finalizar compra
+5?? - Falar com um atendente
+
+### [BLOCO: OPCAO_1_INICIO]
+- **TRIGGER:** 1
+- **RESPONSE:**
+Legal! Para começar, me diga o que você procura (digite **P + o número**):
+
+P1 - Fliperama Completo (com jogos)
+P2 - Apenas Controle USB (para PC)
+
+### [BLOCO: OPCAO_P1_PASSO_2]
+- **TRIGGER:** P1
+- **RESPONSE:**
+Certo, Fliperama! E você precisa para quantos jogadores (digite **P1 + o número**)?
+
+P1-1 - Para 1 Jogador
+P1-2 - Para 2 Jogadores
+
+### [BLOCO: OPCAO_P2_PASSO_2]
+- **TRIGGER:** P2
+- **RESPONSE:**
+Certo, Controle USB! E você precisa para quantos jogadores (digite **P2 + o número**)?
+
+P2-1 - Para 1 Jogador
+P2-2 - Para 2 Jogadores
+
+### [BLOCO: OPCAO_P1_1_PASSO_3]
+- **TRIGGER:** P1-1
+- **RESPONSE:**
+Ótimo! E qual material você prefere para o seu fliperama de 1 jogador (digite **P1-1 + o número**)?
+
+P1-1-1 - MDF (Clássico)
+P1-1-2 - Metal (Ultra Resistente)
+
+### [BLOCO: OPCAO_P1_2_PASSO_3]
+- **TRIGGER:** P1-2
+- **RESPONSE:**
+Ótimo! E qual material você prefere para o seu fliperama de 2 jogadores (digite **P1-2 + o número**)?
+
+P1-2-1 - MDF (Clássico)
+P1-2-2 - Metal (Ultra Resistente)
+
+### [BLOCO: PRECOS_P1_1_1]
+- **TRIGGER:** P1-1-1
+- **RESPONSE:**
+Excelente! Aqui estão os preços para **Fliperama de 1 Jogador em MDF**:
+
+- **Comando Mecânico:** R$ 499
+- **Comando Óptico:** R$ 550
+
+O que você gostaria de fazer agora?
+
+C1 - Comprar Online (Mercado Livre/Shopee)
+5 - Falar com um atendente
+
+Ou digite *menu* para voltar ao início.
+
+### [BLOCO: PRECOS_P1_1_2]
+- **TRIGGER:** P1-1-2
+- **RESPONSE:**
+Excelente! Aqui estão os preços para **Fliperama de 1 Jogador em Metal**:
+
+- **Comando Mecânico:** R$ 599
+- **Comando Óptico:** R$ 650
+
+O que você gostaria de fazer agora?
+
+C1 - Comprar Online (Mercado Livre/Shopee)
+5 - Falar com um atendente
+
+Ou digite *menu* para voltar ao início.
+
+### [BLOCO: PRECOS_P1_2_1]
+- **TRIGGER:** P1-2-1
+- **RESPONSE:**
+Excelente! Aqui estão os preços para **Fliperama de 2 Jogadores em MDF**:
+
+- **Comando Mecânico:** R$ 599
+- **Comando Óptico:** R$ 699
+
+O que você gostaria de fazer agora?
+
+C1 - Comprar Online (Mercado Livre/Shopee)
+5 - Falar com um atendente
+
+Ou digite *menu* para voltar ao início.
+
+### [BLOCO: PRECOS_P1_2_2]
+- **TRIGGER:** P1-2-2
+- **RESPONSE:**
+Excelente! Aqui estão os preços para **Fliperama de 2 Jogadores em Metal**:
+
+- **Comando Mecânico:** R$ 699
+- **Comando Óptico:** R$ 799
+
+O que você gostaria de fazer agora?
+
+C1 - Comprar Online (Mercado Livre/Shopee)
+5 - Falar com um atendente
+
+Ou digite *menu* para voltar ao início.
+
+### [BLOCO: PRECOS_P2_1]
+- **TRIGGER:** P2-1
+- **RESPONSE:**
+Excelente! Preços para **Controle USB de 1 Jogador**:
+
+**Gabinete em MDF:**
+- Mecânico: R$ 299
+- Óptico: R$ 350
+- Óptico Pico (Latência Mínima): R$ 450
+
+**Gabinete em Metal:**
+- Mecânico: R$ 399
+- Óptico: R$ 450
+
+O que você gostaria de fazer agora?
+
+C1 - Comprar Online (Mercado Livre/Shopee)
+5 - Falar com um atendente
+
+Ou digite *menu* para voltar ao início.
+
+### [BLOCO: PRECOS_P2_2]
+- **TRIGGER:** P2-2
+- **RESPONSE:**
+Excelente! Preços para **Controle USB de 2 Jogadores**:
+
+**Gabinete em MDF:**
+- Mecânico: R$ 499
+- Óptico: R$ 599
+
+**Gabinete em Metal:**
+- Mecânico: R$ 650
+- Óptico: R$ 750
+
+O que você gostaria de fazer agora?
+
+C1 - Comprar Online (Mercado Livre/Shopee)
+5 - Falar com um atendente
+
+Ou digite *menu* para voltar ao início.
+
+### [BLOCO: OPCAO_2_ESTAMPAS]
+- **TRIGGER:** 2
+- **RESPONSE:**
+A personalização é a parte mais divertida! Você pode escolher entre dezenas de estampas.
+
+Veja todas as opções em nosso catálogo online aqui:
+?? https://acesse.one/fightarcadeestampa
+
+Caso prefira, você também pode enviar sua própria arte em alta resolução. Posso ajudar com algo mais?
+
+### [BLOCO: OPCAO_3_SUPORTE_MENU]
+- **TRIGGER:** 3
+- **TRIGGER_KEYWORDS:** problema, ajuda, suporte, nao funciona
+- **RESPONSE:**
+Entendo que precisa de ajuda. Para selecionar uma opção, digite **S + o número** (Exemplo: S1).
+
+S1 - Comando não funciona
+S2 - Comando andando sozinho
+S3 - Botões não funcionam
+S4 - Fliperama não liga
+S5 - Como alterar configurações dos botões
+S6 - Como adicionar mais jogos
+S7 - Como instalar um controle adicional
+S8 - Guias e Manuais
+
+Para voltar ao menu principal, digite *menu*.
+
+### [BLOCO: OPCAO_4_FINALIZAR_COMPRA_MENU]
+- **TRIGGER:** 4
+- **RESPONSE:**
+Que ótimo! Para finalizar sua compra, digite **C + o número** da opção:
+
+C1 - Comprar Online (Mercado Livre / Shopee)
+C2 - Finalizar com Atendente (Entrega Expressa)
+
+### [BLOCO: FALAR_COM_ATENDENTE_E_PAUSA]
+- **TRIGGER:** 5
+- **TRIGGER_KEYWORDS:** atendente, falar com alguem, humano
+- **RESPONSE:**
+Nossos especialistas já foram notificados e logo irão te responder no WhatsApp (11) 97898-4413.
+
+**O assistente virtual será pausado para não atrapalhar a conversa.** Para reativá-lo a qualquer momento, basta digitar *menu*. ??
+- **[AÇÃO_DO_SISTEMA]: PAUSAR_CHAT**
+
+#===============================#
+# 3. GATILHOS SECUNDÁRIOS E INFORMAÇÕES ADICIONAIS
+#===============================#
+
+### [BLOCO: COMPRA_ONLINE]
+- **TRIGGER:** C1
+- **RESPONSE:**
+Perfeito! Você pode comprar com toda a segurança em nossas lojas oficiais:
+
+?? **Mercado Livre:** https://lista.mercadolivre.com.br/pagina/fightarcade
+??? **Shopee:** https://shopee.com.br/laradecor
+
+Digite *menu* se precisar de algo mais.
+
+### [BLOCO: COMPRA_DIRETA_E_PAUSA]
+- **TRIGGER:** C2
+- **RESPONSE:**
+Ótima escolha! Comprando diretamente conosco (WhatsApp *11 98812-1976*), temos vantagens como produção em 3-4 horas e entrega rápida por motoboy. Nossos especialistas já foram notificados.
+
+**O assistente virtual será pausado para não atrapalhar.** Para reativá-lo, basta digitar *menu*. ??
+- **[AÇÃO_DO_SISTEMA]: PAUSAR_CHAT**
+
+### [BLOCO: SUPORTE_RESPOSTA_1]
+- **TRIGGER:** S1
+- **RESPONSE:**
+Ok, para *comando que não funciona*:
+1. Verifique os fios na parte traseira, algum pode ter soltado.
+2. Com o fliperama ligado, veja se a placa principal tem um LED aceso.
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_2]
+- **TRIGGER:** S2
+- **RESPONSE:**
+Certo, para *comando andando sozinho*: se for MECÂNICO, uma micro-switch pode estar desalinhada. Se for ÓPTICO, pode ser interferência de luz. Nosso vídeo manual mostra como ajustar: www.fightarcade.com.br/videomanual
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_3]
+- **TRIGGER:** S3
+- **RESPONSE:**
+Ok, se os *botões não funcionam*, geralmente é um fio solto. Abra a tampa traseira com cuidado e verifique a conexão na placa 'zero delay'. O vídeo manual pode te ajudar.
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_4]
+- **TRIGGER:** S4
+- **RESPONSE:**
+Se o *fliperama não liga*, primeiro teste a tomada e o cabo. Se suspeita da fonte, peça para 'falar com um atendente' (opção 5 do menu).
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_5]
+- **TRIGGER:** S5
+- **RESPONSE:**
+Para *alterar a configuração dos botões*, você deve fazer isso dentro de cada jogo. Nosso guia mostra como: https://sl1nk.com/alterarbotoesdentrodojogo
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_6]
+- **TRIGGER:** S6
+- **RESPONSE:**
+Sim, é possível *adicionar ou remover jogos*. Temos um tutorial completo: https://sl1nk.com/adicionarouremoverjogos. *Atenção:* Se feito de forma incorreta, pode danificar o sistema.
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_7]
+- **TRIGGER:** S7
+- **RESPONSE:**
+Para *instalar e configurar um controle adicional*, siga nosso guia passo a passo: https://sl1nk.com/configurarcontrolesnovos
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: SUPORTE_RESPOSTA_8]
+- **TRIGGER:** S8
+- **RESPONSE:**
+Claro! Nossos guias principais são:
+
+?? **Manual em Texto:** https://l1nq.com/manualfightarcade
+?? **Manual em Vídeo:** www.fightarcade.com.br/videomanual
+
+Para voltar ao menu de suporte, digite *3*. Para o menu principal, digite *menu*.
+
+### [BLOCO: INFO_COMPONENTES]
+- **TRIGGER_KEYWORDS:** placas, componentes, desempenho, lag, pico, sanwa, zero delay
+- **RESPONSE:**
+Você está procurando por máxima performance! Nossos controles são configurados com as melhores peças:
+
+- **Placa Pico (RP2040):** O coração dos nossos controles. Latência de menos de 1 milissegundo (input lag), ideal para competição. Mais detalhes: https://www.fightarcade.com.br/pico1/
+- **Comando Óptico vs. Mecânico:** O comando *mecânico* usa peças físicas (micro-switches). O *óptico* usa sensores de luz, garantindo mais precisão e durabilidade.
+- **Componentes Premium:** Oferecemos peças de marcas como Sanwa e Seimitsu. Entre em contato com um atendente para um orçamento.
+
+Posso ajudar com algo mais?
+
+### [BLOCO: INFO_PAGAMENTO]
+- **TRIGGER_KEYWORDS:** pagamento, pagar, parcelamento, pix, boleto, cartao
+- **RESPONSE:**
+Aceitamos Cartão de Crédito (parcelado em até 12x), PIX (geralmente com desconto) e Boleto Bancário. Posso ajudar com algo mais?
+
+### [BLOCO: INFO_GARANTIA]
+- **TRIGGER_KEYWORDS:** garantia, devolucao, defeito, arrependimento, troca
+- **RESPONSE:**
+Oferecemos 1 ano de garantia para nossas placas controladoras e 90 dias para os demais componentes contra defeitos de fabricação. A devolução por arrependimento é de até 7 dias corridos após o recebimento. Posso ajudar com algo mais?

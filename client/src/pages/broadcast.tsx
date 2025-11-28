@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,13 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  isGroup: boolean;
+}
+
 export default function BroadcastPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
@@ -22,27 +29,31 @@ export default function BroadcastPage() {
   const [broadcastName, setBroadcastName] = useState("");
   const [message, setMessage] = useState("");
   const [aiPrompt, setAIPrompt] = useState("");
+  const [mediaType, setMediaType] = useState<"none" | "image" | "video">("none");
+  const [mediaUrl, setMediaUrl] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const { data: devices } = useQuery({
+  const { data: devices } = useQuery<any[]>({
     queryKey: ['/api/devices'],
   });
 
-  const { data: broadcasts, isLoading: loadingBroadcasts } = useQuery({
+  const { data: broadcasts, isLoading: loadingBroadcasts } = useQuery<any[]>({
     queryKey: ['/api/broadcasts'],
     refetchInterval: 5000,
   });
 
-  const { data: contacts, isLoading: loadingContacts } = useQuery({
+  const { data: contacts, isLoading: loadingContacts } = useQuery<Contact[]>({
     queryKey: ['/api/whatsapp/contacts', selectedDevice],
     enabled: !!selectedDevice && isCreateDialogOpen,
   });
 
   const generateAIMutation = useMutation({
     mutationFn: async (prompt: string) => {
-      return await apiRequest("POST", "/api/ai/generate-message", { prompt });
+      const res = await apiRequest("POST", "/api/ai/generate-message", { prompt });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       setMessage(data.message);
@@ -98,6 +109,19 @@ export default function BroadcastPage() {
     setSelectedDevice("");
     setSelectedContacts([]);
     setSelectAll(false);
+    setMediaType("none");
+    setMediaUrl("");
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMediaUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -127,7 +151,15 @@ export default function BroadcastPage() {
       });
       return;
     }
-    createBroadcastMutation.mutate({ name: broadcastName, deviceId: selectedDevice, message, contacts: selectedContacts });
+
+    createBroadcastMutation.mutate({
+      name: broadcastName,
+      deviceId: selectedDevice,
+      message,
+      contacts: selectedContacts,
+      mediaUrl: mediaType !== 'none' ? mediaUrl : undefined,
+      mediaType: mediaType !== 'none' ? mediaType : undefined
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -216,6 +248,64 @@ export default function BroadcastPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>Mídia (Opcional)</Label>
+                <Select value={mediaType} onValueChange={(v: any) => setMediaType(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo de mídia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    <SelectItem value="image">Imagem</SelectItem>
+                    <SelectItem value="video">Vídeo</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {mediaType !== 'none' && (
+                  <div className="space-y-2 mt-2 p-4 border rounded-md bg-muted/20">
+                    <Label>URL ou Upload</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://..."
+                        value={mediaUrl.startsWith('data:') ? '' : mediaUrl}
+                        onChange={(e) => setMediaUrl(e.target.value)}
+                        disabled={mediaUrl.startsWith('data:')}
+                      />
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept={mediaType === 'image' ? "image/*" : "video/*"}
+                        onChange={handleFileUpload}
+                      />
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Upload
+                      </Button>
+                    </div>
+
+                    {mediaUrl && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+                        {mediaType === 'image' ? (
+                          <img src={mediaUrl} alt="Preview" className="max-h-40 rounded border" />
+                        ) : (
+                          <video src={mediaUrl} controls className="max-h-40 rounded border" />
+                        )}
+                        {mediaUrl.startsWith('data:') && (
+                          <Button variant="ghost" size="sm" onClick={() => setMediaUrl("")} className="mt-1 text-destructive h-auto p-0">
+                            Remover arquivo
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {selectedDevice && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -230,7 +320,7 @@ export default function BroadcastPage() {
                   <Card className="max-h-60 overflow-y-auto">
                     <CardContent className="pt-4 space-y-2">
                       {loadingContacts ? (
-                        [1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)
+                        [1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)
                       ) : contacts && contacts.length > 0 ? (
                         contacts.map((contact) => (
                           <div key={contact.phone} className="flex items-center gap-3 p-2 rounded-md">
@@ -315,7 +405,7 @@ export default function BroadcastPage() {
       {/* Broadcasts List */}
       {loadingBroadcasts ? (
         <div className="space-y-4">
-          {[1,2].map(i => <Card key={i}><Skeleton className="h-40 w-full" /></Card>)}
+          {[1, 2].map(i => <Card key={i}><Skeleton className="h-40 w-full" /></Card>)}
         </div>
       ) : broadcasts && broadcasts.length > 0 ? (
         <div className="space-y-4">

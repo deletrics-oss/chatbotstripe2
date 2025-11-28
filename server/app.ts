@@ -82,12 +82,15 @@ export default async function runApp(
 
   // Serve the app on the port specified in the environment variable PORT
   // Default to 3035 for production Ubuntu deployment
-  const port = parseInt(process.env.PORT || '3035', 10);
+  const port = parseInt(process.env.PORT || '3025', 10);
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    // Restore WhatsApp sessions
+    import("./whatsappManager").then(({ restoreSessions }) => {
+      restoreSessions().catch(err => log(`Failed to restore sessions: ${err}`));
+    });
   });
 }

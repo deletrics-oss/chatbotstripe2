@@ -10,6 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { KnowledgeBase } from "@shared/schema";
 
 export default function KnowledgeEditor() {
@@ -25,6 +35,9 @@ export default function KnowledgeEditor() {
   const [tagInput, setTagInput] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageInput, setImageInput] = useState("");
+
+  const [isScrapeDialogOpen, setIsScrapeDialogOpen] = useState(false);
+  const [scrapeUrl, setScrapeUrl] = useState("");
 
   const { data: knowledge, isLoading } = useQuery<KnowledgeBase>({
     queryKey: ['/api/knowledge', params.id],
@@ -79,6 +92,30 @@ export default function KnowledgeEditor() {
       toast({
         title: "Erro",
         description: "Não foi possível salvar o artigo",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const scrapeMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await apiRequest("POST", "/api/knowledge/scrape", { url });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      setTitle(data.title || "");
+      setContent(data.content || "");
+      setIsScrapeDialogOpen(false);
+      setScrapeUrl("");
+      toast({
+        title: "Importado",
+        description: "Conteúdo importado com sucesso",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível importar o conteúdo. Verifique a URL.",
         variant: "destructive",
       });
     },
@@ -164,10 +201,47 @@ export default function KnowledgeEditor() {
           <h1 className="text-3xl font-bold" data-testid="text-page-title">
             {isEditMode ? "Editar Artigo" : "Novo Artigo"}
           </h1>
-          <Button onClick={handleSave} disabled={isPending} data-testid="button-save">
-            <Save className="w-4 h-4 mr-2" />
-            {isPending ? "Salvando..." : "Salvar"}
-          </Button>
+          <div className="flex gap-2">
+            <Dialog open={isScrapeDialogOpen} onOpenChange={setIsScrapeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-import-site">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importar do Site
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Importar Conteúdo</DialogTitle>
+                  <DialogDescription>
+                    Insira a URL de uma página para extrair o título e texto automaticamente.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Label htmlFor="scrape-url">URL do Site</Label>
+                  <Input
+                    id="scrape-url"
+                    placeholder="https://exemplo.com/pagina"
+                    value={scrapeUrl}
+                    onChange={(e) => setScrapeUrl(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsScrapeDialogOpen(false)}>Cancelar</Button>
+                  <Button
+                    onClick={() => scrapeMutation.mutate(scrapeUrl)}
+                    disabled={!scrapeUrl || scrapeMutation.isPending}
+                  >
+                    {scrapeMutation.isPending ? "Importando..." : "Importar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button onClick={handleSave} disabled={isPending} data-testid="button-save">
+              <Save className="w-4 h-4 mr-2" />
+              {isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
         </div>
 
         <Card>

@@ -54,12 +54,18 @@ async function upsertUser(claims: any) {
 
   await storage.upsertUser({
     id: claims["sub"],
+    username: claims["username"] || claims["email"] || claims["sub"],
+    passwordHash: "replit-auth",
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
     currentPlan: existingUser?.currentPlan || 'free',
     planExpiresAt,
+    createdAt: existingUser?.createdAt || new Date(),
+    updatedAt: new Date(),
+    isAdmin: false,
   });
 }
 

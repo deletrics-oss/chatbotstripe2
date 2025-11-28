@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain } from "lucide-react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -27,6 +27,11 @@ const menuItems = [
     icon: Smartphone,
   },
   {
+    title: "Disparo em Massa",
+    url: "/broadcast",
+    icon: Send,
+  },
+  {
     title: "Conversas",
     url: "/chat",
     icon: MessageSquare,
@@ -47,9 +52,9 @@ const menuItems = [
     icon: Brain,
   },
   {
-    title: "Disparo em Massa",
-    url: "/broadcast",
-    icon: Send,
+    title: "Assistentes Web",
+    url: "/web-assistants",
+    icon: Globe,
   },
   {
     title: "Planos",

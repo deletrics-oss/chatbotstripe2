@@ -1,0 +1,294 @@
+{
+  "users": [
+    {
+      "username": "admin",
+      "passwordHash": "$2b$10$506InNt20R.saOo2heBUlOXo/UELi8.PRZEkhv.i.5Q801B8HqdqO",
+      "email": null,
+      "firstName": null,
+      "lastName": null,
+      "currentPlan": "free",
+      "planExpiresAt": "2025-12-28T02:44:35.560Z",
+      "id": "vlDYIUNxPyv5lGEiucjvh",
+      "stripeCustomerId": null,
+      "stripeSubscriptionId": null,
+      "createdAt": "2025-11-28T02:44:35.560Z",
+      "updatedAt": "2025-11-28T05:36:11.508Z",
+      "isAdmin": true
+    },
+    {
+      "username": "joao",
+      "passwordHash": "$2b$10$gbFr51x3vGzj3tIUgmz9IeKh2Mc1JhT5Pu80AqYiin3vUHTLR3oBS",
+      "email": "joao@gmail.com",
+      "firstName": null,
+      "lastName": null,
+      "currentPlan": "free",
+      "planExpiresAt": "2025-12-28T04:26:39.565Z",
+      "id": "5tvCW4OxE6aEFElJ7YXtE",
+      "stripeCustomerId": null,
+      "stripeSubscriptionId": null,
+      "isAdmin": false,
+      "createdAt": "2025-11-28T04:26:39.565Z",
+      "updatedAt": "2025-11-28T04:26:39.565Z"
+    },
+    {
+      "username": "pedro",
+      "passwordHash": "$2b$10$gKjYByMupDIv.ZJ4PCPVLOES13/sj0AsRGadl.90xx.RhCAy14nAW",
+      "email": null,
+      "firstName": null,
+      "lastName": null,
+      "currentPlan": "free",
+      "planExpiresAt": "2025-12-28T04:48:40.482Z",
+      "id": "VtfbJAr5kDD3D3bMl7uO-",
+      "stripeCustomerId": null,
+      "stripeSubscriptionId": null,
+      "isAdmin": false,
+      "createdAt": "2025-11-28T04:48:40.482Z",
+      "updatedAt": "2025-11-28T04:48:40.482Z"
+    }
+  ],
+  "devices": [
+    {
+      "userId": "vlDYIUNxPyv5lGEiucjvh",
+      "name": "vendas",
+      "id": "zqvkXKqJNnl7W7keYCfYW",
+      "phoneNumber": null,
+      "connectionStatus": "qr_ready",
+      "qrCode": "data:image/png;base64,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",
+      "lastConnectedAt": null,
+      "activeLogicId": "SRmHvLJVOvhNbYp9LZq03",
+      "isPaused": false,
+      "createdAt": "2025-11-28T02:44:42.374Z",
+      "updatedAt": "2025-11-28T07:59:28.738Z"
+    },
+    {
+      "userId": "5tvCW4OxE6aEFElJ7YXtE",
+      "name": "vendas",
+      "id": "mjOEZQKxlquZzg_E0yfT3",
+      "phoneNumber": null,
+      "connectionStatus": "qr_ready",
+      "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARQAAAEUCAYAAADqcMl5AAAAAklEQVR4AewaftIAABJmSURBVO3BQY7YSHAAwUxi/v/ltI51aoBgj7S2K8L+YK21LnhYa61LHtZa65KHtda65GGttS55WGutSx7WWuuSh7XWuuRhrbUueVhrrUse1lrrkoe11rrkYa21LnlYa61LHtZa65KHtda65IePVP6mijdUpooTlX+pYlI5qfhCZaqYVE4qblKZKiaVmyreUHmjYlI5qZhU/qaKLx7WWuuSh7XWuuRhrbUu+eGyiptU3lCZKm6qOFGZKk5UblKZKiaVLyq+UHlD5Y2KE5UTlanijYrfVHGTyk0Pa611ycNaa13ysNZal/zwy1TeqHhDZaqYVKaKm1SmikllqjhRmSomlZOKSWWqmFQmlROVqWJSmSq+qJhUblKZKk4qJpUTld+k8kbFb3pYa61LHtZa65KHtda65If/Z1SmijdUpopJZar4TSonFZPKVPFfUjGpTBUnKm9UTCq/qWJS+b/kYa21LnlYa61LHtZa65If/o9RmSpOVKaKE5WTihOVqWJSmVROKt6omFT+pooTlaliUpkqvlA5qThRmVROVKaK/0se1lrrkoe11rrkYa21Lvnhl1X8TRWTylQxVZyofKFyonJSMamcqEwVk8pJxRsqU8WkMlVMKn9TxRsqU8VUMamcVNxU8V/ysNZalzystdYlD2utdckPl6n8b6IyVZxUTCpTxUnFpDJVTCpTxaQyVUwqU8WkcqIyVfymikllqphUpopJ5URlqnhDZaqYVE5UpooTlf+yh7XWuuRhrbUueVhrrUt++Kjiv0TljYqTikllqphUTlTeqHhD5aaK31QxqUwVb6hMFZPKGxWTyonKVHFScVLxv8nDWmtd8rDWWpc8rLXWJT98pDJVTCo3VUwVk8qJyknFpPJGxRsqJyonFZPKVPGGyhcqU8WkclIxqZxUfFExqfwmlZOKSeWmit/0sNZalzystdYlD2utdckP/1jFpDJV3FRxk8pUMan8JpWp4o2KE5Wp4ouKSWVSmSreUPmi4guVk4oTlZsqJpWp4qaHtda65GGttS55WGutS374qGJSOak4qZhUpoqbVKaKqeJvUjmpOFGZKiaVNyomlanib1KZKt6oOFGZKk5UpopJZaqYVKaKSWWqOFGZVKaKSWWq+OJh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VE4qTlROKk5UporfpDJVTConFW+onFTcpDJVTCpTxaTyRsWkMlVMKlPFFypTxaRyUvGFyknFpHJSMamcVHzxsNZalzystdYlD2utdckPH6ncVPGGylTxhspUcaIyVUwqJxWTyknFVDGpTCpTxYnKGypTxb9UcVPFpHJSMalMFZPKGxWTylQxqbxRcdPDWmtd8rDWWpc8rLXWJT/8soovVN5QmSpOKt6omFSmikllUpkqJpW/qeJE5W9SmSpuUpkqvlA5UXmjYlKZKt5QmSp+08Naa13ysNZalzystdYlP1xWMal8UXGicqIyVUwqJxWTyhsVk8pJxYnKScWJyhcVb1ScqLyh8kXFpDJVTBVvqEwVb6icqEwVJxV/08Naa13ysNZalzystdYl9ge/SOWmiptUTiomlaliUnmj4kRlqphUvqiYVKaKN1SmiknlpOILlZOKL1RuqphU/qWKLx7WWuuSh7XWuuRhrbUusT/4QOWNikllqjhROamYVN6omFSmijdU3qiYVE4qJpWpYlI5qZhUpoq/SWWqOFE5qThROak4UTmpmFSmiknljYo3VKaKLx7WWuuSh7XWuuRhrbUusT/4QOWLihOVqWJSmSomlZOKSeWNihOVqWJSmSpOVE4q3lC5qeJE5Y2KN1TeqDhR+d+sYlKZKm56WGutSx7WWuuSh7XWuuSHjyp+U8UXFScqU8Wk8obKicpUcaLyhcobFW+ovFExqbyhMlW8UfFGxaTyRsWkclLxhsoXKlPFFw9rrXXJw1prXfKw1lqX/PCRyt9UMVWcqLyh8obKVDGp/JdUTConKlPFGypfqHxRcaIyVZxU/E0qU8VJxb/0sNZalzystdYlD2utdckPl1XcpHKiMlVMFZPKGxWTyonKFypTxRcVX1TcVHGiclLxhcpUMalMFZPKVHGi8kXFGypTxUnFTQ9rrXXJw1prXfKw1lqX/PDLVN6o+E0Vk8pUMalMFZPKVPGGylTxhspJxaRyovKFyonK/yYqU8WkMlVMFScqk8oXFZPKVPGbHtZa65KHtda65GGttS754f8YlaliUjlRmSpOKt5QOVGZKiaVN1R+U8UbKm9UnKicqEwVk8pUcaJyojJVnFScqEwVk8oXKlPFFw9rrXXJw1prXfKw1lqX/PD/TMWJyqTyRsWkMlVMKlPFScWkMlWcqJxUTCpTxYnKScWJyonKScW/VPGbVKaK/5KHtda65GGttS55WGutS374ZRW/qWJSmVSmikllqphUpopJ5aRiUvlC5URlqjipmFRuqjhRmSpuUpkqTlRuUpkqTlTeUJkqpoq/6WGttS55WGutSx7WWusS+4MPVP6miknli4pJZaqYVKaKSWWqmFSmikllqphUTiq+UJkqJpWp4g2VNyq+UDmpmFRuqphUpooTlZOKE5U3Kr54WGutSx7WWuuSh7XWusT+YK21LnhYa61LHtZa65KHtda65GGttS55WGutSx7WWuuSh7XWuuRhrbUueVhrrUse1lrrkoe11rrkYa21LnlYa61LHtZa65KHtda65H8AVTmhrF1NxCAAAAAASUVORK5CYII=",
+      "lastConnectedAt": null,
+      "activeLogicId": "z1nbpZ6Vjvw0Hpg3OzrUC",
+      "isPaused": false,
+      "createdAt": "2025-11-28T04:28:26.848Z",
+      "updatedAt": "2025-11-28T07:59:35.864Z"
+    },
+    {
+      "userId": "VtfbJAr5kDD3D3bMl7uO-",
+      "name": "vendas",
+      "id": "kgIzvA_kFLAEiGbpKt-yR",
+      "phoneNumber": null,
+      "connectionStatus": "qr_ready",
+      "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARQAAAEUCAYAAADqcMl5AAAAAklEQVR4AewaftIAABJESURBVO3BQW4AR7IoSfcC739lHy1j8xMoVJLS6wkz+wdrrXXBw1prXfKw1lqXPKy11iUPa611ycNaa13ysNZalzystdYlD2utdcnDWmtd8rDWWpc8rLXWJQ9rrXXJw1prXfKw1lqXPKy11iU/fKTylypOVE4qJpWp4iaVNyomlaliUnmj4g2VqWJSmSomlaniDZWpYlJ5o2JSeaPiRGWqmFROKiaVv1TxxcNaa13ysNZalzystdYlP1xWcZPKicpUcaLyhcpJxVRxonJSMamcVEwqJyonFScV/6aKSWWqmFSmiknlDZWp4jdV3KRy08Naa13ysNZalzystdYlP/wylTcqvlB5o2JSmSq+UJkqTlSmijdUpoovVE4qTipOVKaK31TxRsUXKr9J5Y2K3/Sw1lqXPKy11iUPa611yQ//P1PxhspU8UbFScWkMqlMFZPKicpUMVWcqEwVk8pJxaTyRsWk8oXKFyonKicVk8r/koe11rrkYa21LnlYa61Lfvg/rmJSOVGZKqaKN1SmijdU3lD5QuULlZsqJpWp4qRiUplU3qh4o2JSOVGZKv6XPKy11iUPa611ycNaa13ywy+r+C+pmFSmikllqpgq3lA5qThROamYVKaKSWWqeEPlROVEZao4qZhUvqg4UZkqJpWpYlKZKm6q+C95WGutSx7WWuuSh7XWuuSHy1T+kspUMan8JpWpYlKZKiaVE5WpYlL5TSpTxUnFpDJVTConKlPFScWkMlVMKlPFX1KZKk5U/sse1lrrkoe11rrkYa21LrF/8H+YyknFpHJTxU0qU8WkclJxonJS8YbKGxWTylTxhspU8YXKVDGpTBWTylRxojJV/F/2sNZalzystdYlD2utdckPH6lMFTepTBX/popJ5aRiUpkqpopJZaqYVCaVqeINlZsqJpUTlZOKqeJE5aTijYpJ5URlqjhROak4UXmj4qaHtda65GGttS55WGutS+wffKByUnGiclIxqdxU8ZtUpooTld9U8YbKScWkclIxqUwVk8pUMalMFZPKVPGGyn9ZxYnKScVND2utdcnDWmtd8rDWWpf88FHFTRWTyhsVk8qJyknFGypTxaTyRsWJylTxhspJxaTym1TeqJhUpooTlani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",
+      "lastConnectedAt": null,
+      "activeLogicId": null,
+      "isPaused": false,
+      "createdAt": "2025-11-28T04:49:47.761Z",
+      "updatedAt": "2025-11-28T07:59:28.437Z"
+    }
+  ],
+  "conversations": [],
+  "messages": [],
+  "logics": [
+    {
+      "userId": "5tvCW4OxE6aEFElJ7YXtE",
+      "name": "json",
+      "description": "logica de suporte",
+      "logicType": "hybrid",
+      "logicJson": {},
+      "behaviorConfigId": null,
+      "id": "z1nbpZ6Vjvw0Hpg3OzrUC",
+      "deviceId": null,
+      "isActive": true,
+      "isTemplate": false,
+      "createdAt": "2025-11-28T04:28:44.030Z",
+      "updatedAt": "2025-11-28T04:28:44.030Z"
+    },
+    {
+      "userId": "VtfbJAr5kDD3D3bMl7uO-",
+      "name": "teste",
+      "description": "teste",
+      "logicType": "hybrid",
+      "logicJson": {},
+      "behaviorConfigId": null,
+      "id": "skdvMRbR8J4AtRW9qC-5t",
+      "deviceId": null,
+      "isActive": true,
+      "isTemplate": false,
+      "createdAt": "2025-11-28T04:50:01.490Z",
+      "updatedAt": "2025-11-28T04:50:01.490Z"
+    },
+    {
+      "userId": "vlDYIUNxPyv5lGEiucjvh",
+      "name": "teste",
+      "description": "Gerada por IA baseada em: logica para atendimento lcmelo...",
+      "logicJson": {
+        "rules": [
+          {
+            "keywords": [
+              "oi",
+              "olá",
+              "bom dia",
+              "boa tarde",
+              "boa noite"
+            ],
+            "reply": "Olá! 👋 Bem-vindo(a) à LCMelo. Como posso ajudar você hoje?"
+          },
+          {
+            "keywords": [
+              "preço",
+              "valor",
+              "quanto custa",
+              "custo"
+            ],
+            "reply": "Para saber o preço dos nossos produtos/serviços, por favor, especifique qual deles você tem interesse. 😊"
+          },
+          {
+            "keywords": [
+              "forma de pagamento",
+              "formas de pagamento",
+              "pagamento",
+              "como pagar"
+            ],
+            "reply": "Aceitamos diversas formas de pagamento: Cartão de crédito, boleto bancário e PIX. 💳\nQual é a sua preferência?"
+          },
+          {
+            "keywords": [
+              "entrega",
+              "frete",
+              "envio",
+              "como recebo",
+              "prazo de entrega"
+            ],
+            "reply": "Realizamos entregas em todo o Brasil! 📦 O prazo e o valor do frete variam de acordo com a sua região. Para calcular, informe seu CEP, por favor."
+          },
+          {
+            "keywords": [
+              "horário de atendimento",
+              "atendimento",
+              "horário"
+            ],
+            "reply": "Nosso horário de atendimento é de segunda a sexta, das 9h às 18h. ⏰"
+          },
+          {
+            "keywords": [
+              "dúvidas",
+              "duvida",
+              "ajuda",
+              "suporte"
+            ],
+            "reply": "Em que posso te ajudar? Por favor, seja específico para que eu possa te dar a melhor resposta. 😊"
+          },
+          {
+            "keywords": [
+              "lcmelo",
+              "empresa",
+              "quem são vocês",
+              "sobre vocês"
+            ],
+            "reply": "Somos a LCMelo, uma empresa especializada em [sua especialidade]. Nosso objetivo é oferecer soluções inovadoras e de alta qualidade para nossos clientes. 😊"
+          },
+          {
+            "keywords": [
+              "orçamento",
+              "cotar",
+              "cotação"
+            ],
+            "reply": "Para solicitar um orçamento, por favor, detalhe suas necessidades para que possamos preparar uma proposta personalizada. 📝"
+          }
+        ],
+        "default_reply": "Desculpe, não entendi sua pergunta. 😕 Por favor, reformule ou utilize palavras-chave como 'preço', 'entrega' ou 'horário de atendimento'.",
+        "pause_bot_after_reply": false
+      },
+      "logicType": "ai",
+      "isActive": true,
+      "id": "E-67xKrqnbSxgebdRPyX2",
+      "deviceId": null,
+      "behaviorConfigId": null,
+      "isTemplate": false,
+      "createdAt": "2025-11-28T07:30:29.206Z",
+      "updatedAt": "2025-11-28T07:30:29.206Z"
+    }
+  ],
+  "knowledgeBases": [],
+  "botBehaviors": [
+    {
+      "id": "preset-professional",
+      "userId": "system",
+      "name": "Profissional",
+      "tone": "formal",
+      "personality": "Sou um assistente profissional e cortês. Falo de forma clara e objetiva, sempre mantendo respeito e formalidade.",
+      "responseStyle": "concise",
+      "customInstructions": "Use linguagem formal. Sempre cumprimente educadamente.",
+      "isActive": true,
+      "isPreset": true,
+      "createdAt": "2025-11-28T02:32:30.680Z",
+      "updatedAt": "2025-11-28T02:32:30.680Z"
+    },
+    {
+      "id": "preset-friendly",
+      "userId": "system",
+      "name": "Amigável",
+      "tone": "friendly",
+      "personality": "Sou um assistente amigável e acolhedor. Converso de forma calorosa e empática, criando conexão genuína.",
+      "responseStyle": "detailed",
+      "customInstructions": "Use tom amigável. Mostre empatia e interesse genuíno.",
+      "isActive": true,
+      "isPreset": true,
+      "createdAt": "2025-11-28T02:32:30.680Z",
+      "updatedAt": "2025-11-28T02:32:30.680Z"
+    },
+    {
+      "id": "preset-sales",
+      "userId": "system",
+      "name": "Vendas",
+      "tone": "persuasive",
+      "personality": "Sou um assistente de vendas consultivo. Identifico necessidades e apresento soluções de forma persuasiva mas não invasiva.",
+      "responseStyle": "detailed",
+      "customInstructions": "Foque em benefícios. Faça perguntas qualificadoras. Conduza para conversão.",
+      "isActive": true,
+      "isPreset": true,
+      "createdAt": "2025-11-28T02:32:30.680Z",
+      "updatedAt": "2025-11-28T02:32:30.680Z"
+    },
+    {
+      "id": "preset-support",
+      "userId": "system",
+      "name": "Suporte Técnico",
+      "tone": "empathetic",
+      "personality": "Sou um assistente de suporte técnico prestativo. Resolvo problemas de forma clara, paciente e didática.",
+      "responseStyle": "detailed",
+      "customInstructions": "Seja paciente. Explique passo a passo. Confirme resolução do problema.",
+      "isActive": true,
+      "isPreset": true,
+      "createdAt": "2025-11-28T02:32:30.680Z",
+      "updatedAt": "2025-11-28T02:32:30.680Z"
+    }
+  ],
+  "broadcasts": [],
+  "broadcastContacts": [],
+  "webAssistants": [
+    {
+      "userId": "5tvCW4OxE6aEFElJ7YXtE",
+      "name": "teste",
+      "slug": "teste",
+      "themeColor": "#000000",
+      "activeLogicId": null,
+      "id": "2WU_HsWiLWgkteGsamt1o",
+      "isActive": true,
+      "createdAt": "2025-11-28T04:27:17.717Z",
+      "updatedAt": "2025-11-28T04:27:17.717Z"
+    },
+    {
+      "userId": "vlDYIUNxPyv5lGEiucjvh",
+      "name": "lcmelo",
+      "slug": "lcmelo",
+      "themeColor": "#000000",
+      "activeLogicId": "E-67xKrqnbSxgebdRPyX2",
+      "id": "g6x_mIR_986HmQvwpRVqv",
+      "isActive": true,
+      "createdAt": "2025-11-28T07:47:59.579Z",
+      "updatedAt": "2025-11-28T07:47:59.579Z"
+    }
+  ]
+}

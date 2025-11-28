@@ -6,6 +6,8 @@
 export interface LogicRule {
   keywords: string[];
   reply: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'audio' | 'document';
   pause_bot_after_reply?: boolean;
   set_conversation_state?: string;
 }
@@ -18,6 +20,8 @@ export interface LogicJson {
 
 export interface ExecutionResult {
   reply: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'audio' | 'document';
   shouldPause: boolean;
   conversationState?: string;
 }
@@ -53,6 +57,8 @@ export function executeLogic(
     if (matches) {
       return {
         reply: rule.reply,
+        mediaUrl: rule.mediaUrl,
+        mediaType: rule.mediaType,
         shouldPause: rule.pause_bot_after_reply ?? false,
         conversationState: rule.set_conversation_state,
       };

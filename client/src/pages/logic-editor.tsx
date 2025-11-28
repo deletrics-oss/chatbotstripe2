@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Upload, Download, Save, FileJson, Sparkles, Trash2 } from "lucide-react";
+import { Plus, Upload, Download, Save, FileJson, Sparkles, Trash2, Play } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +20,7 @@ import Editor from "@monaco-editor/react";
 
 export default function LogicEditor() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newLogicName, setNewLogicName] = useState("");
   const [newLogicDescription, setNewLogicDescription] = useState("");
   const [newLogicType, setNewLogicType] = useState<'json' | 'ai' | 'hybrid'>('json');
@@ -26,9 +28,33 @@ export default function LogicEditor() {
   const [selectedLogicId, setSelectedLogicId] = useState<string | null>(null);
   const [jsonContent, setJsonContent] = useState("{}");
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiSourceType, setAiSourceType] = useState<'text' | 'url'>('text');
+  const [aiSourceContent, setAiSourceContent] = useState("");
+  const [useEmojis, setUseEmojis] = useState(true);
   const [aiGeneratedJson, setAiGeneratedJson] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("editor");
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const { data: templates } = useQuery<any[]>({
+    queryKey: ['/api/logics/templates'],
+  });
+
+  const handleUseTemplate = (template: any) => {
+    setNewLogicName(template.name);
+    setNewLogicDescription(template.description);
+    setJsonContent(JSON.stringify(template.logic, null, 2));
+    setNewLogicType('json');
+    setIsCreateDialogOpen(true);
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    toast({
+      title: "Template selecionado",
+      description: "Preencha os detalhes para criar a lógica.",
+    });
+  };
 
   const { data: logics, isLoading } = useQuery<LogicConfig[]>({
     queryKey: ['/api/logics'],
@@ -39,8 +65,9 @@ export default function LogicEditor() {
   });
 
   const generateAiLogicMutation = useMutation({
-    mutationFn: async (prompt: string) => {
-      return await apiRequest("POST", "/api/ai/generate-logic", { prompt });
+    mutationFn: async (data: { prompt: string; sourceType: 'text' | 'url'; sourceContent: string; useEmojis?: boolean }) => {
+      const res = await apiRequest("POST", "/api/ai/generate-logic", data);
+      return await res.json();
     },
     onSuccess: (data: any) => {
       try {
@@ -69,8 +96,8 @@ export default function LogicEditor() {
   });
 
   const generateAndSaveAiLogicMutation = useMutation({
-    mutationFn: async ({ prompt, logicName }: { prompt: string; logicName: string }) => {
-      return await apiRequest("POST", "/api/ai/generate-and-save-logic", { prompt, logicName });
+    mutationFn: async ({ prompt, logicName, sourceType, sourceContent, useEmojis }: { prompt: string; logicName: string; sourceType?: 'text' | 'url'; sourceContent?: string; useEmojis?: boolean }) => {
+      return await apiRequest("POST", "/api/ai/generate-and-save-logic", { prompt, logicName, sourceType, sourceContent, useEmojis });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/logics'] });
@@ -89,8 +116,43 @@ export default function LogicEditor() {
     },
   });
 
+  const editLogicWithAiMutation = useMutation({
+    mutationFn: async ({ currentJson, prompt, sourceType, sourceContent, useEmojis }: { currentJson: any; prompt: string; sourceType?: 'text' | 'url'; sourceContent?: string; useEmojis?: boolean }) => {
+      const res = await apiRequest("POST", "/api/ai/edit-logic", { currentJson, prompt, sourceType, sourceContent, useEmojis });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      try {
+        const modifiedJson = data.logicJson || data;
+        setJsonContent(JSON.stringify(modifiedJson, null, 2));
+        setAiPrompt("");
+        setActiveTab("editor");
+        toast({
+          title: "Lógica atualizada",
+          description: "JSON modificado pela IA com sucesso. Revise e salve.",
+        });
+        // Switch back to editor tab to show changes
+        const editorTab = document.querySelector('[value="editor"]') as HTMLElement;
+        if (editorTab) editorTab.click();
+      } catch (error) {
+        toast({
+          title: "Erro ao processar",
+          description: "Não foi possível processar a resposta da IA",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error?.message || "Não foi possível editar a lógica com IA",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createLogicMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; logicJson: any; logicType: 'json' | 'ai' | 'hybrid'; behaviorConfigId?: string }) => {
+    mutationFn: async (data: { name: string; description: string; logicJson: any; logicType: 'json' | 'ai' | 'hybrid'; behaviorConfigId?: string; aiPrompt?: string }) => {
       return await apiRequest("POST", "/api/logics", data);
     },
     onSuccess: () => {
@@ -266,12 +328,12 @@ export default function LogicEditor() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="behavior">Comportamento do Bot (Opcional)</Label>
-                    <Select value={selectedBehaviorId} onValueChange={setSelectedBehaviorId}>
+                    <Select value={selectedBehaviorId || "none"} onValueChange={setSelectedBehaviorId}>
                       <SelectTrigger id="behavior" data-testid="select-behavior">
                         <SelectValue placeholder="Selecione um comportamento" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
+                        <SelectItem value="none">Nenhum</SelectItem>
                         {behaviors?.map((behavior) => (
                           <SelectItem key={behavior.id} value={behavior.id}>
                             {behavior.isPreset ? '⭐ ' : ''}{behavior.name}
@@ -311,8 +373,102 @@ export default function LogicEditor() {
                       </Button>
                     </div>
                   </div>
+
                 </div>
-                <DialogFooter>
+
+                {newLogicType === 'ai' && (
+                  <div className="space-y-4 mt-4 border-t pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ai-prompt-create">O que você quer criar?</Label>
+                      <Textarea
+                        id="ai-prompt-create"
+                        placeholder="Ex: Criar bot de atendimento para loja de roupas..."
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        className="h-24"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Fonte de Conhecimento (Opcional)</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={aiSourceType === 'text' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setAiSourceType('text')}
+                          className="flex-1"
+                        >
+                          Texto
+                        </Button>
+                        <Button
+                          variant={aiSourceType === 'url' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setAiSourceType('url')}
+                          className="flex-1"
+                        >
+                          URL do Site
+                        </Button>
+                      </div>
+
+                      {aiSourceType === 'url' ? (
+                        <Input
+                          placeholder="https://www.exemplo.com.br"
+                          value={aiSourceContent}
+                          onChange={(e) => setAiSourceContent(e.target.value)}
+                        />
+                      ) : (
+                        <Textarea
+                          placeholder="Cole o texto aqui..."
+                          value={aiSourceContent}
+                          onChange={(e) => setAiSourceContent(e.target.value)}
+                          className="h-24"
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="use-emojis-create"
+                        checked={useEmojis}
+                        onCheckedChange={(checked) => setUseEmojis(checked as boolean)}
+                      />
+                      <Label htmlFor="use-emojis-create">Usar Emojis</Label>
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      onClick={() => generateAndSaveAiLogicMutation.mutate({
+                        prompt: aiPrompt,
+                        logicName: newLogicName || "Nova Lógica IA",
+                        sourceType: aiSourceType,
+                        sourceContent: aiSourceContent,
+                        useEmojis
+                      })}
+                      disabled={!aiPrompt || generateAndSaveAiLogicMutation.isPending}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {generateAndSaveAiLogicMutation.isPending ? "Gerando..." : "Gerar e Salvar"}
+                    </Button>
+                  </div>
+                )}
+
+                {newLogicType === 'hybrid' && (
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="ai-prompt">Prompt da IA (para comando /ia)</Label>
+                    <Textarea
+                      id="ai-prompt"
+                      placeholder="Defina a personalidade e instruções da IA aqui..."
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      className="h-32"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      No modo Híbrido, este prompt será usado apenas quando o cliente enviar o comando <code>/ia</code>.
+                    </p>
+                  </div>
+                )}
+
+                <DialogFooter className="mt-6">
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancelar
                   </Button>
@@ -322,7 +478,8 @@ export default function LogicEditor() {
                       description: newLogicDescription,
                       logicJson: {},
                       logicType: newLogicType,
-                      behaviorConfigId: selectedBehaviorId || undefined,
+                      behaviorConfigId: (selectedBehaviorId && selectedBehaviorId !== "none") ? selectedBehaviorId : undefined,
+                      aiPrompt: newLogicType === 'hybrid' ? aiPrompt : undefined,
                     })}
                     disabled={!newLogicName || createLogicMutation.isPending}
                     data-testid="button-submit-logic"
@@ -366,9 +523,8 @@ export default function LogicEditor() {
                       setSelectedLogicId(logic.id);
                       setJsonContent(JSON.stringify(logic.logicJson, null, 2));
                     }}
-                    className={`w-full text-left p-3 rounded-lg border border-border hover-elevate active-elevate-2 ${
-                      selectedLogicId === logic.id ? 'bg-accent' : ''
-                    }`}
+                    className={`w-full text-left p-3 rounded-lg border border-border hover-elevate active-elevate-2 ${selectedLogicId === logic.id ? 'bg-accent' : ''
+                      }`}
                     data-testid={`logic-item-${logic.id}`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -424,14 +580,14 @@ export default function LogicEditor() {
                     <Save className="w-4 h-4 mr-2" />
                     Salvar
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={() => {
-                      if (confirm('Tem certeza que deseja deletar esta lógica?')) {
+                      if (confirm('Tem certeza que deseja deletar esta lógica?') && selectedLogicId) {
                         deleteLogicMutation.mutate(selectedLogicId);
                       }
-                    }} 
+                    }}
                     disabled={deleteLogicMutation.isPending}
                     data-testid="button-delete"
                   >
@@ -443,7 +599,7 @@ export default function LogicEditor() {
           </CardHeader>
           <CardContent>
             {selectedLogic ? (
-              <Tabs defaultValue="editor" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full">
                   <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
                   <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
@@ -486,118 +642,183 @@ export default function LogicEditor() {
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 text-primary">
                             <Sparkles className="w-5 h-5" />
-                            <p className="font-medium">Gerador IA Gemini</p>
+                            <p className="font-medium">
+                              {selectedLogic ? "Editor Assistido por IA" : "Gerador IA Gemini"}
+                            </p>
                           </div>
+
                           <p className="text-sm text-muted-foreground">
-                            Descreva o comportamento desejado e a IA gerará a lógica JSON automaticamente.
+                            {selectedLogic
+                              ? "Descreva como você quer alterar esta lógica e a IA fará as modificações no JSON."
+                              : "Descreva o comportamento desejado e a IA gerará a lógica JSON automaticamente."}
                           </p>
+
                           <Textarea
-                            placeholder="Ex: Criar um fluxo que responde 'Olá! Como posso ajudar?' quando receber 'oi' ou 'olá', e responde 'Nosso horário é 9h às 18h' quando receber 'horário' ou 'funcionamento'"
+                            placeholder={selectedLogic
+                              ? "Ex: Adicione uma regra para responder 'O preço é R$ 50' quando perguntarem sobre 'preço' ou 'valor'"
+                              : "Ex: Criar um fluxo que responde 'Olá! Como posso ajudar?' quando receber 'oi' ou 'olá'..."}
                             rows={4}
                             value={aiPrompt}
                             onChange={(e) => setAiPrompt(e.target.value)}
                             data-testid="input-ai-prompt"
                           />
-                          
-                          {!aiGeneratedJson ? (
-                            <div className="space-y-3">
-                              <Button 
-                                variant="outline"
-                                className="w-full" 
-                                onClick={() => generateAiLogicMutation.mutate(aiPrompt)}
-                                disabled={!aiPrompt || generateAiLogicMutation.isPending}
-                                data-testid="button-generate-ai"
+
+                          {/* Source Inputs (Available for both Edit and Create) */}
+                          <div className="space-y-2">
+                            <Label>Fonte de Conhecimento (Opcional)</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant={aiSourceType === 'text' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setAiSourceType('text')}
+                                className="flex-1"
                               >
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                {generateAiLogicMutation.isPending ? "Gerando..." : "Gerar Prévia"}
+                                Texto
                               </Button>
-                              <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                  <div className="w-full border-t border-border" />
-                                </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                  <span className="bg-card px-2 text-muted-foreground">ou</span>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="logic-auto-name">Nome da Lógica</Label>
-                                <Input
-                                  id="logic-auto-name"
-                                  placeholder="Ex: Atendimento Inicial"
-                                  value={newLogicName}
-                                  onChange={(e) => setNewLogicName(e.target.value)}
-                                  data-testid="input-logic-auto-name"
-                                />
-                              </div>
-                              <Button 
-                                className="w-full" 
-                                onClick={() => generateAndSaveAiLogicMutation.mutate({ prompt: aiPrompt, logicName: newLogicName })}
-                                disabled={!aiPrompt || !newLogicName || generateAndSaveAiLogicMutation.isPending}
-                                data-testid="button-generate-and-save-ai"
+                              <Button
+                                variant={aiSourceType === 'url' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setAiSourceType('url')}
+                                className="flex-1"
                               >
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                {generateAndSaveAiLogicMutation.isPending ? "Gerando e Salvando..." : "Gerar e Salvar"}
+                                URL do Site
                               </Button>
                             </div>
+                            {aiSourceType === 'text' ? (
+                              <Textarea
+                                placeholder="Cole aqui o texto de base (ex: cardápio, FAQ)..."
+                                value={aiSourceContent}
+                                onChange={(e) => setAiSourceContent(e.target.value)}
+                                className="h-24"
+                              />
+                            ) : (
+                              <Input
+                                placeholder="https://seu-site.com"
+                                value={aiSourceContent}
+                                onChange={(e) => setAiSourceContent(e.target.value)}
+                              />
+                            )}
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="use-emojis"
+                              checked={useEmojis}
+                              onCheckedChange={(checked) => setUseEmojis(checked as boolean)}
+                            />
+                            <Label htmlFor="use-emojis" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              Usar Emojis nas respostas
+                            </Label>
+                          </div>
+
+                          {selectedLogic ? (
+                            <Button
+                              className="w-full"
+                              onClick={() => {
+                                try {
+                                  const currentJson = JSON.parse(jsonContent);
+                                  editLogicWithAiMutation.mutate({
+                                    currentJson,
+                                    prompt: aiPrompt,
+                                    sourceType: aiSourceType,
+                                    sourceContent: aiSourceContent,
+                                    useEmojis
+                                  });
+                                } catch (e) {
+                                  toast({
+                                    title: "JSON Inválido",
+                                    description: "Corrija o JSON atual antes de usar a IA",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                              disabled={!aiPrompt || editLogicWithAiMutation.isPending}
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              {editLogicWithAiMutation.isPending ? "Processando..." : "Aplicar Alterações com IA"}
+                            </Button>
                           ) : (
-                            <div className="space-y-3">
-                              <div className="border border-border rounded-lg p-4 bg-muted">
-                                <p className="text-sm font-medium mb-2">JSON Gerado:</p>
-                                <pre className="text-xs font-mono overflow-auto max-h-[300px]">
-                                  {JSON.stringify(aiGeneratedJson, null, 2)}
-                                </pre>
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="save-ai-name">Nome da Lógica</Label>
-                                <Input
-                                  id="save-ai-name"
-                                  placeholder="Ex: Atendimento Inicial"
-                                  value={newLogicName}
-                                  onChange={(e) => setNewLogicName(e.target.value)}
-                                  data-testid="input-save-ai-name"
-                                />
-                              </div>
-                              
-                              <div className="flex gap-2">
-                                <Button 
+                            !aiGeneratedJson ? (
+                              <div className="space-y-3">
+                                <Button
                                   variant="outline"
-                                  className="flex-1"
-                                  onClick={() => {
-                                    setAiGeneratedJson(null);
-                                    setNewLogicName("");
-                                  }}
-                                  data-testid="button-reject-ai"
+                                  className="w-full"
+                                  onClick={() => generateAiLogicMutation.mutate({ prompt: aiPrompt, sourceType: aiSourceType, sourceContent: aiSourceContent, useEmojis })}
+                                  disabled={!aiPrompt || generateAiLogicMutation.isPending}
                                 >
-                                  Descartar
+                                  <Play className="w-4 h-4 mr-2" />
+                                  {generateAiLogicMutation.isPending ? "Gerando Preview..." : "Gerar Preview"}
                                 </Button>
-                                <Button 
-                                  className="flex-1" 
-                                  onClick={() => {
-                                    if (selectedLogicId && newLogicName) {
-                                      updateLogicMutation.mutate({ 
-                                        id: selectedLogicId, 
-                                        logicJson: aiGeneratedJson 
-                                      });
-                                      setAiGeneratedJson(null);
-                                    } else if (!selectedLogicId && newLogicName) {
-                                      createLogicMutation.mutate({
-                                        name: newLogicName,
-                                        description: `Gerada por IA Gemini`,
-                                        logicJson: aiGeneratedJson,
-                                      });
-                                      setAiGeneratedJson(null);
-                                      setNewLogicName("");
-                                    }
-                                  }}
-                                  disabled={!newLogicName || updateLogicMutation.isPending || createLogicMutation.isPending}
-                                  data-testid="button-accept-ai"
+                                <Button
+                                  className="w-full"
+                                  onClick={() => setIsSaveDialogOpen(true)}
+                                  disabled={!aiPrompt}
                                 >
                                   <Save className="w-4 h-4 mr-2" />
-                                  Salvar Lógica
+                                  Gerar e Salvar
                                 </Button>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="border border-border rounded-lg p-4 bg-muted">
+                                  <p className="text-sm font-medium mb-2">JSON Gerado:</p>
+                                  <pre className="text-xs font-mono overflow-auto max-h-[300px]">
+                                    {JSON.stringify(aiGeneratedJson, null, 2)}
+                                  </pre>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="save-ai-name">Nome da Lógica</Label>
+                                  <Input
+                                    id="save-ai-name"
+                                    placeholder="Ex: Atendimento Inicial"
+                                    value={newLogicName}
+                                    onChange={(e) => setNewLogicName(e.target.value)}
+                                    data-testid="input-save-ai-name"
+                                  />
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => {
+                                      setAiGeneratedJson(null);
+                                      setNewLogicName("");
+                                    }}
+                                    data-testid="button-reject-ai"
+                                  >
+                                    Descartar
+                                  </Button>
+                                  <Button
+                                    className="flex-1"
+                                    onClick={() => {
+                                      if (selectedLogicId && newLogicName) {
+                                        updateLogicMutation.mutate({
+                                          id: selectedLogicId,
+                                          logicJson: aiGeneratedJson
+                                        });
+                                        setAiGeneratedJson(null);
+                                      } else if (!selectedLogicId && newLogicName) {
+                                        createLogicMutation.mutate({
+                                          name: newLogicName,
+                                          description: `Gerada por IA Gemini`,
+                                          logicJson: aiGeneratedJson,
+                                          logicType: 'ai',
+                                        });
+                                        setAiGeneratedJson(null);
+                                        setNewLogicName("");
+                                      }
+                                    }}
+                                    disabled={!newLogicName || updateLogicMutation.isPending || createLogicMutation.isPending}
+                                    data-testid="button-accept-ai"
+                                  >
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Salvar Lógica
+                                  </Button>
+                                </div>
+                              </div>
+                            )
                           )}
                         </div>
                       </CardContent>
@@ -614,54 +835,81 @@ export default function LogicEditor() {
                   </p>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            )
+            }
+          </CardContent >
+        </Card >
+      </div >
 
       {/* Templates */}
-      <Card>
+      < Card >
         <CardHeader>
           <CardTitle>Templates Prontos</CardTitle>
           <CardDescription>Modelos pré-configurados para começar rapidamente</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="hover-elevate cursor-pointer" data-testid="template-welcome">
+            {/* Card para Gerar com IA */}
+            <Card
+              className="hover-elevate cursor-pointer transition-all border-dashed border-2 hover:border-primary bg-muted/30"
+              onClick={() => {
+                if (!canCreateLogics) {
+                  toast({
+                    title: "Limite atingido",
+                    description: "Você atingiu o limite de lógicas do seu plano. Faça upgrade ou exclua uma lógica existente.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                setNewLogicType('ai');
+                setIsCreateDialogOpen(true);
+              }}
+            >
               <CardHeader>
-                <CardTitle className="text-base">Boas-vindas</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Criar com IA
+                </CardTitle>
+                <Badge variant="secondary" className="w-fit mt-1">Recomendado</Badge>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Mensagem automática de boas-vindas para novos contatos
+                  Descreva o que você quer ou envie um link/texto e a IA cria tudo para você.
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="hover-elevate cursor-pointer" data-testid="template-faq">
-              <CardHeader>
-                <CardTitle className="text-base">FAQ Automático</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Responde perguntas frequentes automaticamente
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover-elevate cursor-pointer" data-testid="template-support">
-              <CardHeader>
-                <CardTitle className="text-base">Suporte</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Fluxo de atendimento e triagem de suporte
-                </p>
-              </CardContent>
-            </Card>
+            {templates?.map((template) => (
+              <Card
+                key={template.id}
+                className="hover-elevate cursor-pointer transition-all hover:border-primary"
+                onClick={() => {
+                  if (!canCreateLogics) {
+                    toast({
+                      title: "Limite atingido",
+                      description: "Você atingiu o limite de lógicas do seu plano. Faça upgrade ou exclua uma lógica existente.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  handleUseTemplate(template);
+                }}
+                data-testid={`template-${template.id}`}
+              >
+                <CardHeader>
+                  <CardTitle className="text-base">{template.name}</CardTitle>
+                  <Badge variant="outline" className="w-fit mt-1">{template.category}</Badge>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {template.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
-      </Card>
-    </div>
+      </Card >
+    </div >
   );
 }

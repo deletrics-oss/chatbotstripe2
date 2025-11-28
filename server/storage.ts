@@ -24,48 +24,63 @@ import {
   type InsertBotBehaviorConfig,
   type Broadcast,
   type InsertBroadcast,
+  type WebAssistant,
+  type InsertWebAssistant,
+  webAssistants,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import * as fs from "fs";
+import * as path from "path";
+
+const DATA_DIR = path.join(process.cwd(), "server", "data");
+const DB_FILE = path.join(DATA_DIR, "db.json");
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // WhatsApp Devices
   getDevices(userId: string): Promise<WhatsappDevice[]>;
   getDevice(id: string): Promise<WhatsappDevice | undefined>;
   createDevice(device: InsertWhatsappDevice): Promise<WhatsappDevice>;
   updateDevice(id: string, data: Partial<WhatsappDevice>): Promise<WhatsappDevice>;
+  updateDevice(id: string, data: Partial<WhatsappDevice>): Promise<WhatsappDevice>;
   deleteDevice(id: string): Promise<void>;
-  
+  getAllDevices(): Promise<WhatsappDevice[]>; // Added for system restoration
+
   // Conversations
   getConversations(deviceId: string): Promise<Conversation[]>;
   getConversation(id: string): Promise<Conversation | undefined>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
   updateConversation(id: string, data: Partial<Conversation>): Promise<Conversation>;
-  
+
   // Messages
   getMessages(conversationId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
-  
+
   // Logic Configs
   getLogics(userId: string): Promise<LogicConfig[]>;
   getLogic(id: string): Promise<LogicConfig | undefined>;
   createLogic(logic: InsertLogicConfig): Promise<LogicConfig>;
   updateLogic(id: string, data: Partial<LogicConfig>): Promise<LogicConfig>;
   deleteLogic(id: string): Promise<void>;
-  
+
   // Knowledge Base
   getKnowledgeBase(userId: string): Promise<KnowledgeBase[]>;
   getKnowledgeBaseItem(id: string): Promise<KnowledgeBase | undefined>;
   createKnowledgeBase(kb: InsertKnowledgeBase): Promise<KnowledgeBase>;
   updateKnowledgeBase(id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase>;
   deleteKnowledgeBase(id: string): Promise<void>;
-  
+
   // Bot Behavior Configs
   getBotBehaviors(userId: string): Promise<BotBehaviorConfig[]>;
   getBotBehavior(id: string): Promise<BotBehaviorConfig | undefined>;
@@ -73,29 +88,37 @@ export interface IStorage {
   updateBotBehavior(id: string, data: Partial<BotBehaviorConfig>): Promise<BotBehaviorConfig>;
   deleteBotBehavior(id: string): Promise<void>;
   getPresetBehaviors(): Promise<BotBehaviorConfig[]>;
-  
+
   // Stats
   getStats(userId: string): Promise<{
     activeChats: number;
     messagesToday: number;
     responseRate: number;
   }>;
-  
+
   // Broadcast operations
   getBroadcasts(userId: string): Promise<any[]>;
   getBroadcast(id: string): Promise<any | undefined>;
   createBroadcast(broadcast: any): Promise<any>;
   updateBroadcast(id: string, data: any): Promise<any>;
   deleteBroadcast(id: string): Promise<void>;
-  
+
   // Broadcast Contact operations
   getBroadcastContacts(broadcastId: string): Promise<any[]>;
   createBroadcastContact(contact: any): Promise<any>;
   updateBroadcastContact(id: string, data: any): Promise<any>;
-  
+
   // User operations
   updateUser(id: string, data: any): Promise<User>;
   upsertUser(user: User): Promise<User>;
+
+  // Web Assistants
+  getWebAssistants(userId: string): Promise<WebAssistant[]>;
+  getWebAssistant(id: string): Promise<WebAssistant | undefined>;
+  getWebAssistantBySlug(slug: string): Promise<WebAssistant | undefined>;
+  createWebAssistant(assistant: InsertWebAssistant): Promise<WebAssistant>;
+  updateWebAssistant(id: string, data: Partial<WebAssistant>): Promise<WebAssistant>;
+  deleteWebAssistant(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -157,6 +180,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(whatsappDevices).where(eq(whatsappDevices.id, id));
   }
 
+  async getAllDevices(): Promise<WhatsappDevice[]> {
+    return await db.select().from(whatsappDevices);
+  }
+
   // Conversations
   async getConversations(deviceId: string): Promise<Conversation[]> {
     return await db
@@ -205,13 +232,13 @@ export class DatabaseStorage implements IStorage {
       .insert(messages)
       .values(message)
       .returning();
-    
+
     // Update conversation's lastMessageAt
     await db
       .update(conversations)
       .set({ lastMessageAt: new Date() })
       .where(eq(conversations.id, message.conversationId));
-    
+
     return newMessage;
   }
 
@@ -334,12 +361,12 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(botBehaviorConfigs)
       .where(eq(botBehaviorConfigs.isPreset, true));
-    
+
     // Se não há presets no banco, retornar presets constantes
     if (dbPresets.length === 0) {
       return PRESET_BEHAVIORS;
     }
-    
+
     return dbPresets;
   }
 
@@ -362,22 +389,22 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(conversations)
       .where(eq(conversations.isActive, true));
-    
+
     const activeChats = allConversations.filter((c: Conversation) => deviceIds.includes(c.deviceId)).length;
 
     // Count messages today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const allMessages = await db
       .select()
       .from(messages)
       .where(eq(messages.timestamp, today));
-    
+
     const todayConversations = await db
       .select()
       .from(conversations);
-    
+
     const messagesToday = allMessages.filter((m: Message) => {
       const conv = todayConversations.find((c: Conversation) => c.id === m.conversationId);
       return conv && deviceIds.includes(conv.deviceId);
@@ -477,6 +504,52 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
+
+  // Web Assistant methods
+  async getWebAssistants(userId: string): Promise<WebAssistant[]> {
+    return await db
+      .select()
+      .from(webAssistants)
+      .where(eq(webAssistants.userId, userId))
+      .orderBy(desc(webAssistants.createdAt));
+  }
+
+  async getWebAssistant(id: string): Promise<WebAssistant | undefined> {
+    const [assistant] = await db
+      .select()
+      .from(webAssistants)
+      .where(eq(webAssistants.id, id));
+    return assistant;
+  }
+
+  async getWebAssistantBySlug(slug: string): Promise<WebAssistant | undefined> {
+    const [assistant] = await db
+      .select()
+      .from(webAssistants)
+      .where(eq(webAssistants.slug, slug));
+    return assistant;
+  }
+
+  async createWebAssistant(assistant: InsertWebAssistant): Promise<WebAssistant> {
+    const [newAssistant] = await db
+      .insert(webAssistants)
+      .values(assistant)
+      .returning();
+    return newAssistant;
+  }
+
+  async updateWebAssistant(id: string, data: Partial<WebAssistant>): Promise<WebAssistant> {
+    const [updated] = await db
+      .update(webAssistants)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(webAssistants.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteWebAssistant(id: string): Promise<void> {
+    await db.delete(webAssistants).where(eq(webAssistants.id, id));
+  }
 }
 
 // Comportamentos Padrões (Presets)
@@ -546,12 +619,72 @@ export class MemStorage implements IStorage {
   private botBehaviors = new Map<string, BotBehaviorConfig>();
   private broadcasts = new Map<string, any>();
   private broadcastContacts = new Map<string, any>();
-  
+  private webAssistants = new Map<string, WebAssistant>();
+
   constructor() {
-    // Inicializar presets
+    this.loadData();
+
+    // Inicializar presets se não existirem
     PRESET_BEHAVIORS.forEach(preset => {
-      this.botBehaviors.set(preset.id, preset);
+      if (!this.botBehaviors.has(preset.id)) {
+        this.botBehaviors.set(preset.id, preset);
+      }
     });
+
+    this.saveData(); // Save initial state including presets
+  }
+
+  private loadData() {
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+
+        // Helper to revive dates
+        const revive = (obj: any) => {
+          for (const key in obj) {
+            if (typeof obj[key] === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(obj[key])) {
+              obj[key] = new Date(obj[key]);
+            }
+          }
+          return obj;
+        };
+
+        if (data.users) this.users = new Map(data.users.map((u: any) => [u.id, revive(u)]));
+        if (data.devices) this.devices = new Map(data.devices.map((d: any) => [d.id, revive(d)]));
+        if (data.conversations) this.conversations = new Map(data.conversations.map((c: any) => [c.id, revive(c)]));
+        if (data.messages) this.messages = new Map(data.messages.map((m: any) => [m.id, revive(m)]));
+        if (data.logics) this.logics = new Map(data.logics.map((l: any) => [l.id, revive(l)]));
+        if (data.knowledgeBases) this.knowledgeBases = new Map(data.knowledgeBases.map((k: any) => [k.id, revive(k)]));
+        if (data.botBehaviors) this.botBehaviors = new Map(data.botBehaviors.map((b: any) => [b.id, revive(b)]));
+        if (data.webAssistants) this.webAssistants = new Map(data.webAssistants.map((w: any) => [w.id, revive(w)]));
+        if (data.broadcasts) this.broadcasts = new Map(data.broadcasts.map((b: any) => [b.id, revive(b)]));
+        if (data.broadcastContacts) this.broadcastContacts = new Map(data.broadcastContacts.map((c: any) => [c.id, revive(c)]));
+
+        console.log(`[Storage] Data loaded from ${DB_FILE}`);
+      }
+    } catch (error) {
+      console.error("[Storage] Error loading data:", error);
+    }
+  }
+
+  private saveData() {
+    try {
+      const data = {
+        users: Array.from(this.users.values()),
+        devices: Array.from(this.devices.values()),
+        conversations: Array.from(this.conversations.values()),
+        messages: Array.from(this.messages.values()),
+        logics: Array.from(this.logics.values()),
+        knowledgeBases: Array.from(this.knowledgeBases.values()),
+        botBehaviors: Array.from(this.botBehaviors.values()),
+        broadcasts: Array.from(this.broadcasts.values()),
+        broadcastContacts: Array.from(this.broadcastContacts.values()),
+        webAssistants: Array.from(this.webAssistants.values()),
+      };
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (error) {
+      console.error("[Storage] Error saving data:", error);
+    }
   }
 
   // User operations
@@ -574,10 +707,12 @@ export class MemStorage implements IStorage {
       stripeSubscriptionId: null,
       currentPlan: userData.currentPlan || 'free',
       planExpiresAt: userData.planExpiresAt || null,
+      isAdmin: userData.isAdmin || false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
     this.users.set(user.id, user);
+    this.saveData();
     return user;
   }
 
@@ -586,11 +721,13 @@ export class MemStorage implements IStorage {
     if (!user) throw new Error('User not found');
     const updated = { ...user, ...data, updatedAt: new Date() };
     this.users.set(id, updated);
+    this.saveData();
     return updated;
   }
 
   async upsertUser(userData: User): Promise<User> {
     this.users.set(userData.id, userData);
+    this.saveData();
     return userData;
   }
 
@@ -619,6 +756,7 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
     this.devices.set(newDevice.id, newDevice);
+    this.saveData();
     return newDevice;
   }
 
@@ -627,11 +765,17 @@ export class MemStorage implements IStorage {
     if (!device) throw new Error('Device not found');
     const updated = { ...device, ...data, updatedAt: new Date() };
     this.devices.set(id, updated);
+    this.saveData();
     return updated;
   }
 
   async deleteDevice(id: string): Promise<void> {
     this.devices.delete(id);
+    this.saveData();
+  }
+
+  async getAllDevices(): Promise<WhatsappDevice[]> {
+    return Array.from(this.devices.values());
   }
 
   // Conversations
@@ -655,6 +799,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.conversations.set(newConv.id, newConv);
+    this.saveData();
     return newConv;
   }
 
@@ -663,6 +808,7 @@ export class MemStorage implements IStorage {
     if (!conv) throw new Error('Conversation not found');
     const updated = { ...conv, ...data };
     this.conversations.set(id, updated);
+    this.saveData();
     return updated;
   }
 
@@ -689,6 +835,7 @@ export class MemStorage implements IStorage {
       conv.lastMessageAt = new Date();
       this.conversations.set(message.conversationId, conv);
     }
+    this.saveData();
 
     return newMessage;
   }
@@ -718,6 +865,7 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
     this.logics.set(newLogic.id, newLogic);
+    this.saveData();
     return newLogic;
   }
 
@@ -726,11 +874,13 @@ export class MemStorage implements IStorage {
     if (!logic) throw new Error('Logic not found');
     const updated = { ...logic, ...data, updatedAt: new Date() };
     this.logics.set(id, updated);
+    this.saveData();
     return updated;
   }
 
   async deleteLogic(id: string): Promise<void> {
     this.logics.delete(id);
+    this.saveData();
   }
 
   // Knowledge Base
@@ -756,6 +906,7 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
     this.knowledgeBases.set(newKb.id, newKb);
+    this.saveData();
     return newKb;
   }
 
@@ -764,11 +915,13 @@ export class MemStorage implements IStorage {
     if (!kb) throw new Error('Knowledge Base item not found');
     const updated = { ...kb, ...data, updatedAt: new Date() };
     this.knowledgeBases.set(id, updated);
+    this.saveData();
     return updated;
   }
 
   async deleteKnowledgeBase(id: string): Promise<void> {
     this.knowledgeBases.delete(id);
+    this.saveData();
   }
 
   // Bot Behavior Configs
@@ -795,6 +948,7 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
     this.botBehaviors.set(newBehavior.id, newBehavior);
+    this.saveData();
     return newBehavior;
   }
 
@@ -803,11 +957,13 @@ export class MemStorage implements IStorage {
     if (!behavior) throw new Error('Bot Behavior not found');
     const updated = { ...behavior, ...data, updatedAt: new Date() };
     this.botBehaviors.set(id, updated);
+    this.saveData();
     return updated;
   }
 
   async deleteBotBehavior(id: string): Promise<void> {
     this.botBehaviors.delete(id);
+    this.saveData();
   }
 
   async getPresetBehaviors(): Promise<BotBehaviorConfig[]> {
@@ -832,12 +988,12 @@ export class MemStorage implements IStorage {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const messagesToday = Array.from(this.messages.values())
       .filter((m: Message) => {
         const conv = this.conversations.get(m.conversationId);
-        return conv && deviceIds.includes(conv.deviceId) && 
-               m.timestamp && m.timestamp >= today;
+        return conv && deviceIds.includes(conv.deviceId) &&
+          m.timestamp && m.timestamp >= today;
       }).length;
 
     const responseRate = activeChats > 0 ? Math.min(95, Math.round(Math.random() * 30 + 70)) : 0;
@@ -856,9 +1012,10 @@ export class MemStorage implements IStorage {
   }
 
   async createBroadcast(data: any): Promise<any> {
-    const broadcast = { ...data, id: nanoid(), createdAt: new Date(), startedAt: null, completedAt: null };
-    this.broadcasts.set(broadcast.id, broadcast);
-    return broadcast;
+    const newBroadcast = { ...data, id: nanoid(), createdAt: new Date(), startedAt: null, completedAt: null };
+    this.broadcasts.set(newBroadcast.id, newBroadcast);
+    this.saveData();
+    return newBroadcast;
   }
 
   async updateBroadcast(id: string, data: any): Promise<any> {
@@ -866,11 +1023,13 @@ export class MemStorage implements IStorage {
     if (!b) throw new Error('Broadcast not found');
     const updated = { ...b, ...data };
     this.broadcasts.set(id, updated);
+    this.saveData();
     return updated;
   }
 
   async deleteBroadcast(id: string): Promise<void> {
     this.broadcasts.delete(id);
+    this.saveData();
   }
 
   async getBroadcastContacts(broadcastId: string): Promise<any[]> {
@@ -878,17 +1037,66 @@ export class MemStorage implements IStorage {
   }
 
   async createBroadcastContact(data: any): Promise<any> {
-    const contact = { ...data, id: nanoid(), createdAt: new Date(), sentAt: null, errorMessage: null };
-    this.broadcastContacts.set(contact.id, contact);
-    return contact;
+    const newContact = { ...data, id: nanoid(), createdAt: new Date(), sentAt: null, errorMessage: null };
+    this.broadcastContacts.set(newContact.id, newContact);
+    this.saveData();
+    return newContact;
   }
 
   async updateBroadcastContact(id: string, data: any): Promise<any> {
-    const c = this.broadcastContacts.get(id);
-    if (!c) throw new Error('Contact not found');
-    const updated = { ...c, ...data };
+    const contact = this.broadcastContacts.get(id);
+    if (!contact) throw new Error("Broadcast contact not found");
+    const updated = { ...contact, ...data };
     this.broadcastContacts.set(id, updated);
+    this.saveData();
     return updated;
+  }
+
+  // Web Assistant methods
+  async getWebAssistants(userId: string): Promise<WebAssistant[]> {
+    return Array.from(this.webAssistants.values()).filter(
+      (w) => w.userId === userId
+    );
+  }
+
+  async getWebAssistant(id: string): Promise<WebAssistant | undefined> {
+    return this.webAssistants.get(id);
+  }
+
+  async getWebAssistantBySlug(slug: string): Promise<WebAssistant | undefined> {
+    return Array.from(this.webAssistants.values()).find(
+      (w) => w.slug === slug
+    );
+  }
+
+  async createWebAssistant(assistant: InsertWebAssistant): Promise<WebAssistant> {
+    const id = nanoid();
+    const newAssistant: WebAssistant = {
+      ...assistant,
+      id,
+      themeColor: assistant.themeColor || '#000000',
+      activeLogicId: assistant.activeLogicId || null,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.webAssistants.set(id, newAssistant);
+    this.saveData();
+    return newAssistant;
+  }
+
+  async updateWebAssistant(id: string, data: Partial<WebAssistant>): Promise<WebAssistant> {
+    const assistant = this.webAssistants.get(id);
+    if (!assistant) throw new Error("Web assistant not found");
+    const updated = { ...assistant, ...data, updatedAt: new Date() };
+    this.webAssistants.set(id, updated);
+    this.saveData();
+    return updated;
+  }
+
+  async deleteWebAssistant(id: string): Promise<void> {
+    this.webAssistants.delete(id);
+    this.saveData();
   }
 }
 

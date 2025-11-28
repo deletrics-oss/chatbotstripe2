@@ -53,12 +53,14 @@ export async function processBroadcast(broadcastId: string) {
 
       // Send message
       console.log(`[Broadcast] Sending message to ${nextContact.contactPhone}`);
-      
+
       try {
         const sent = await whatsappManager.sendWhatsAppMessage(
           broadcast.deviceId,
           nextContact.contactPhone,
-          broadcast.message
+          broadcast.message,
+          broadcast.mediaUrl,
+          broadcast.mediaType
         );
 
         if (sent) {
@@ -79,7 +81,7 @@ export async function processBroadcast(broadcastId: string) {
         }
       } catch (error: any) {
         console.error(`[Broadcast] Error sending to ${nextContact.contactPhone}:`, error);
-        
+
         // Update contact status to failed
         await storage.updateBroadcastContact(nextContact.id, {
           status: 'failed',
@@ -94,7 +96,7 @@ export async function processBroadcast(broadcastId: string) {
 
     } catch (error) {
       console.error(`[Broadcast] Error processing broadcast ${broadcastId}:`, error);
-      
+
       // Mark as failed if too many errors
       await storage.updateBroadcast(broadcastId, {
         status: 'failed',

@@ -35,15 +35,16 @@ export const users = pgTable("users", {
   email: varchar("email"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
-  
+
   // Stripe customer info
   stripeCustomerId: varchar("stripe_customer_id").unique(),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
-  
+
   // Subscription plan (free, basic, full)
   currentPlan: varchar("current_plan").notNull().default('free'),
   planExpiresAt: timestamp("plan_expires_at"),
-  
+  isAdmin: boolean("is_admin").default(false),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -221,6 +222,8 @@ export const broadcasts = pgTable("broadcasts", {
   deviceId: varchar("device_id").notNull().references(() => whatsappDevices.id, { onDelete: 'cascade' }),
   name: varchar("name").notNull(),
   message: text("message").notNull(),
+  mediaUrl: text("media_url"),
+  mediaType: varchar("media_type"), // image, video, document, audio
   status: broadcastStatusEnum("status").notNull().default('pending'),
   totalContacts: integer("total_contacts").notNull().default(0),
   sentCount: integer("sent_count").notNull().default(0),
@@ -259,12 +262,38 @@ export const insertBroadcastContactSchema = createInsertSchema(broadcastContacts
 export type BroadcastContact = typeof broadcastContacts.$inferSelect;
 export type InsertBroadcastContact = z.infer<typeof insertBroadcastContactSchema>;
 
+// ============ WEB ASSISTANTS (NON-WHATSAPP CHAT) ============
+
+export const webAssistants = pgTable("web_assistants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  slug: varchar("slug").notNull().unique(), // Public URL identifier
+  themeColor: varchar("theme_color").default('#000000'),
+  activeLogicId: varchar("active_logic_id"), // Can link to a logic config
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWebAssistantSchema = createInsertSchema(webAssistants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  slug: z.string().min(3).regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+});
+
+export type WebAssistant = typeof webAssistants.$inferSelect;
+export type InsertWebAssistant = z.infer<typeof insertWebAssistantSchema>;
+
 // ============ RELATIONS ============
 
 export const usersRelations = relations(users, ({ many }) => ({
   whatsappDevices: many(whatsappDevices),
   logicConfigs: many(logicConfigs),
   knowledgeBase: many(knowledgeBase),
+  webAssistants: many(webAssistants),
 }));
 
 export const whatsappDevicesRelations = relations(whatsappDevices, ({ one, many }) => ({
@@ -288,6 +317,17 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
     references: [conversations.id],
+  }),
+}));
+
+export const webAssistantsRelations = relations(webAssistants, ({ one }) => ({
+  user: one(users, {
+    fields: [webAssistants.userId],
+    references: [users.id],
+  }),
+  activeLogic: one(logicConfigs, {
+    fields: [webAssistants.activeLogicId],
+    references: [logicConfigs.id],
   }),
 }));
 

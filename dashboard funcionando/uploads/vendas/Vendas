@@ -1,0 +1,11 @@
+### Base de Conhecimento de Teste Simples ###
+
+# Informações do Produto Fictício
+- Nome do Produto: Controle Arcade Modelo 'Cyber-Leo'
+- Preço: R$ 99,90
+- Cor Disponível: Apenas na cor Roxo Translúcido. Não existe em outras cores.
+- Compatibilidade: Exclusivamente para PC.
+- Código Secreto do Produto: TANGO-7
+
+# Instrução de Teste
+- Se alguém perguntar sobre o modelo 'Cyber-Leo', responda usando apenas as informações desta base.

@@ -1,0 +1,61 @@
+{
+  "menu_principal_texto": "Olá! Sou o assistente virtual da LC Melo Parafusos e Fixadores. Como posso te ajudar a encontrar a solução ideal em fixação hoje?",
+  "default_reply": "Desculpe, não entendi sua solicitação. Por favor, escolha uma das opções numeradas.\n\nPara falar com um atendente, digite *5*.\nDigite *menu* para voltar ao início.",
+  "rules": [
+    {
+      "keywords": ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "menu", "ajuda", "inicio", "início", "start", "voltar", "sair", "opcoes", "opções"],
+      "reply": "Olá! ?? Sou o assistente virtual da LC Melo Parafusos e Gabaritos.\n\nSe preferir, digite *5* para falar diretamente com um atendente.\n\nComo posso ajudar?\n\n1?? - Sobre a LC Melo\n2?? - Ver Produtos\n3?? - Solicitar Orçamento / Falar com Vendas\n4?? - Falar com o Financeiro\n5?? - Outros assuntos Diversos",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["1"],
+      "reply": "Com 30 anos de mercado, a LCM INDÚSTRIA conta com uma equipe de profissionais altamente qualificados. Desenvolve produtos para profissionais do setor moveleiro, parafusos e prolongadores para pastas e mostruários.\n\nEstamos localizados na Rua Honório Maia, 864 galpão D, Tatuapé - CEP 03072-000 - São Paulo -SP\n\nNosso site: www.lcmelo.com.br\nInstagram: https://www.instagram.com/lcmgabaritos/\nNossa Loja: www.lcmgabaritos.com.br\n\nDigite *menu* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["2"],
+      "reply": "Ótimo! Sobre quais produtos você gostaria de saber mais? (Digite *P + o número*):\n\nP1 – Parafusos\nP2 – Gabaritos\n\nDigite *menu* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1", "parafusos"],
+      "reply": "Aqui estão nossos parafusos. Veja mais em nossa loja:\n\n?? https://www.lcmgabaritos.com.br/parafusos/\n\nDigite *2* para voltar ao menu de produtos ou *menu* para o início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p2", "gabaritos"],
+      "reply": "Aqui estão nossos gabaritos. Veja mais em nossa loja:\n\n?? https://www.lcmgabaritos.com.br/gabaritos/\n\nDigite *2* para voltar ao menu de produtos ou *menu* para o início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["3", "orcamento", "cotacao", "preco", "comprar", "pedido", "vendas", "vendedor", "comercial"],
+      "reply": "Entendi. Para cotações, disponibilidade, preços e para falar com nossa equipe comercial, por favor, entre em contato:\n\n?? Telefone: *(11) 2641-3508*\n?? WhatsApp Vendas: *11 95323-9904*\n?? E-mail: *atendimento@lcmelo.com.br*\n\n*O assistente virtual será pausado para não atrapalhar.* Para reativá-lo, basta digitar *menu*. ??",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["4", "financeiro", "boleto", "pagamento", "nfe"],
+      "reply": "Para falar com o Financeiro, por favor, entre em contato pelo WhatsApp:\n\n?? WhatsApp Financeiro: *11 98810-7493*\n\n*O assistente virtual será pausado para não atrapalhar.* Para reativá-lo, basta digitar *menu*. ??",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["5", "contato", "falar com atendente", "atendente", "falar com alguem", "humano", "outros", "diversos", "outros assuntos"],
+      "reply": "Entendido. Para falar com nossa equipe sobre outros assuntos, por favor, use um dos canais abaixo:\n\n?? WhatsApp Atendimento: *11 95323-9904*\n?? E-mail: *atendimento@lcmelo.com.br*\n\n*O assistente virtual será pausado para não atrapalhar.* Para reativá-lo, basta digitar *menu*. ??",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["qual parafuso usar", "nao sei qual parafuso", "ajuda escolher parafuso", "aplicacao"],
+      "reply": "Claro, posso ajudar a direcionar! Para recomendar o parafuso certo, preciso saber mais sobre a aplicação. Por exemplo: \n- Em qual tipo de material você vai usar o parafuso (metal, madeira, concreto)? \n- Ele ficará exposto ao tempo ou a produtos químicos? \n- Qual o esforço ou peso que ele precisará suportar?\n\nCom essas informações, nossa equipe de vendas pode te ajudar melhor. Digite *3* para solicitar um orçamento/falar com vendas.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["parceiros", "revendedor"],
+      "reply": "Temos diversos parceiros onde você pode encontrar nossos produtos. Você pode ver a lista em nosso site: https://lcmelo.com.br/parceiros/\n\nSe você tem interesse em se tornar um revendedor, acesse: https://lcmelo.com.br/revendedor/",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["blog", "novidades", "dicas"],
+      "reply": "Fique por dentro das novidades e dicas sobre marcenaria e ferramentas em nosso blog: https://lcmelo.com.br/blog/",
+      "pause_bot_after_reply": false
+    }
+  ]
+}

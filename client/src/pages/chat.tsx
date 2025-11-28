@@ -105,10 +105,10 @@ export default function Chat() {
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="font-medium truncate">{conversation.contactName}</p>
                       <span className="text-xs text-muted-foreground shrink-0">
-                        {new Date(conversation.lastMessageAt).toLocaleTimeString('pt-BR', {
+                        {conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleTimeString('pt-BR', {
                           hour: '2-digit',
                           minute: '2-digit',
-                        })}
+                        }) : ''}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">

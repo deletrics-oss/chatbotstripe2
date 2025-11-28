@@ -1,0 +1,78 @@
+{
+  "menu_principal_texto": "Olá! Sou o assistente virtual da LC Melo Parafusos e Fixadores. Como posso te ajudar a encontrar a solução ideal em fixação hoje?",
+  "default_reply": "Desculpe, não entendi sua solicitação. Por favor, escolha uma das opções numeradas, digite *menu* para voltar ao início ou *atendente* para falar com um de nossos especialistas.",
+  "rules": [
+    {
+      "keywords": ["oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "menu", "ajuda", "inicio", "início", "start", "voltar", "sair", "opcoes", "opções"],
+      "reply": "Olá! ?? Sou o assistente virtual da LC Melo Parafusos e Gabaritos.\n\nComo posso ajudar?\n\n1?? - Sobre a LC Melo\n2?? - Ver Produtos\n3?? - Solicitar Orçamento / Falar com Vendas\n4?? - Falar com o Financeiro\n5?? - Outros assuntos diversos\n\n_Para falar com um atendente a qualquer momento, digite *atendente*._",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["1", "sobre a lc melo"],
+      "reply": "Com 30 anos de mercado, a LCM INDÚSTRIA conta com uma equipe de profissionais altamente qualificados. Desenvolve produtos para profissionais do setor moveleiro, parafusos e prolongadores para pastas e mostruários. \n\nEstamos localizados na Rua Honório Maia, 864 galpão D, Tatuapé - CEP 03072-000 - São Paulo - SP\n\n?? Nosso site: www.lcmelo.com.br \n?? Instagram: https://www.instagram.com/lcmgabaritos/\n?? Nossa Loja: www.lcmgabaritos.com.br\n\nDigite *menu* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["2", "ver produtos", "produtos"],
+      "reply": "Ótimo! Sobre quais produtos você gostaria de saber mais? (Digite *P + o número*):\n\nP1 - Tipos de Parafusos\nP2 - Materiais\nP3 - Acabamentos\nP4 - Ferramentas e Gabaritos\n\nOu, se preferir, acesse nossas categorias completas:\n?? Parafusos: https://www.lcmgabaritos.com.br/parafusos/\n??? Gabaritos: https://lcmgabaritos.com.br/gabaritos/\n\nDigite *menu* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p1", "parafusos"],
+      "reply": "Trabalhamos com diversos tipos de parafusos:\n- *Sextavados:* Uso geral.\n- *Allen:* Aperto interno.\n- *Auto Atarraxantes:* Criam a própria rosca.\n- *Máquina:* Rosca fina, uso com porca/furo roscado.\n- *Parafuso Pasta:* Para pastas e catálogos.\n\n_Para mais detalhes sobre o *Parafuso Pasta*, digite 'Parafuso Pasta'._\n\nPrecisa de detalhes ou cotação? Digite *3* para falar com vendas ou *menu* para voltar.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["parafuso pasta"],
+      "reply": "*Parafuso de Metal Niquelado para Pastas e Catálogos*\n\nDescrição: Fabricados em ferro com acabamento niquelado. Diâmetro externo 5mm, macho 9mm. Vendido em conjunto (macho + fêmea). Opções de macho: PHILIPS, FENDA ou LISO. Disponível em diversos tamanhos.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/parafuso-pasta/\n\nDigite *P1* para ver outros tipos de parafusos ou *menu* para o início.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p2", "materiais"],
+      "reply": "Nossos principais materiais são:\n- *Aço Carbono:* Mais comum, pode ser tratado.\n- *Aço Inox 304:* Boa resistência à corrosão.\n- *Aço Inox 316:* Resistência superior (ambientes agressivos).\n- *Latão:* Resistente à corrosão, não magnético.\n\nQual material te interessa? Digite *2* para voltar ao menu de produtos ou *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p3", "acabamento", "acabamentos"],
+      "reply": "Oferecemos diversos acabamentos para proteção:\n- *Zincado (Branco ou Amarelo/Bicromatizado):* Proteção comum contra ferrugem.\n- *Niquelado:* Bom acabamento estético.\n- *Oxidado:* Acabamento preto.\n\nQual acabamento você procura? Digite *2* para voltar ao menu de produtos ou *menu*.",
+      "pause_bot_after_reply": false
+    },
+    {
+      "keywords": ["p4", "gabaritos", "ferramentas"],
+      "reply": "Temos diversas ferramentas e gabaritos! Escolha uma categoria (Digite o prefixo + número):\n\n*Gabaritos Específicos (GAB)*\nGAB1 - Porta GF100\nGAB2 - Cavilha 45º\nGAB3 - Cavilha e Minifix (GMF-2)\nGAB4 - Mini Jig 45 (15/18mm)\nGAB5 - Morsa 90 (GM90)\nGAB6 - Batente GF200\nGAB7 - Vb 54/15\nGAB8 - Dobradiça 35 DC35\n\n*Gabaritos Gerais (GER)*\nGER1 - Zeus\nGER2 - LC-101\nGER3 - LC-35\nGER4 - Multi G\n\n*Bases e Mesas (BAS)*\nBAS1 - Base Spider (Tupia)\nBAS2 - Base Universal (Serra)\nBAS3 - Mesa Para Tupia\n\n*Medição/Marcação (FER)*\nFER1 - Compasso Riscador\nFER2 - Graminho Gênesys\nFER3 - Graminho Riscador Gama\nFER4 - Riscador De Graminho\nFER5 - Régua Deslizante T-Track\n\n*Grampos (GRA)*\nGRA1 - Mini Grampo\nGRA2 - Grampo Duplo Marchetaria\nGRA3 - Grampo T-Track\n\n*Guias e Trilhos (GUI)*\nGUI1 - Trilho Guia Serra 1,5m\nGUI2 - Guia Tupia Circular\nGUI3 - T-Track 60/80cm\n\nDigite *2* para voltar ao menu de produtos ou *menu*.",
+      "pause_bot_after_reply": false
+    },
+    { "keywords": ["gab1"], "reply": "*Gabarito para Porta – GF100*\n\nDescrição: Gabarito fresador para encaixe de fechadura. Permite furações precisas.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-para-porta-gf100/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab2"], "reply": "*Gabarito Cavilha 45º*\n\nDescrição: Para furação com cavilha em peças com cortes de 45°.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-cavilha-45o/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab3"], "reply": "*Gabarito Cavilha e Minifix (GMF-2)*\n\nDescrição: Para montagem de móveis usando Minifix e cavilha em MDF/MDP.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-cavilha-e-minifix/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab4"], "reply": "*Gabarito Mini Jig 45 – 15mm e 18mm*\n\nDescrição: Para furações em ângulo de 45 graus em chapas de 15mm e 18mm.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-mini-jig-45-15mm-e-18mm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab5"], "reply": "*Gabarito Morsa 90 – GM90*\n\nDescrição: Para fixação e furação precisa em ângulos de 90 graus.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-morsa-90-gm90/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab6"], "reply": "*Gabarito Para Batente – GF200*\n\nDescrição: Para usinagem e instalação de batentes de porta.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-batente/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab7"], "reply": "*Gabarito Vb 54/15*\n\nDescrição: Para furação do sistema VB simples e duplo em chapas de 15mm.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-vb-54-15/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gab8"], "reply": "*Dobradiça 35 – DC35 (Gabarito)*\n\nDescrição: Gabarito para marcação e furação para dobradiça caneco 35 mm.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/dobradica-35-dc35/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["ger1"], "reply": "*Gabarito Zeus*\n\nDescrição: Para fazer canal e arredondar cantos de tábuas de carne.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-zeus/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["ger2"], "reply": "*Gabarito LC-101*\n\nDescrição: Gabarito versátil para diversas furações em marcenaria.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-lc-101/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["ger3"], "reply": "*Gabarito LC-35*\n\nDescrição: Gabarito para furação de sistemas de montagem.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-lc-35/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["ger4"], "reply": "*Gabarito Multi G*\n\nDescrição: Gabarito multifuncional para diversas aplicações em marcenaria.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/gabarito-multi-g/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["bas1"], "reply": "*Base Spider para Tupia Laminadora Invertida LCM*\n\nDescrição: Suporte para inverter tupia laminadora em bancada.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/base-spider-para-tupia-laminadora-invertida-lcm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["bas2"], "reply": "*Base Universal para Serra Circular Manual*\n\nDescrição: Base para usar serra circular manual com trilho guia.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/base-universal-para-serra-circular-manual/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["bas3"], "reply": "*Mesa Para Tupia – Kit Completo*\n\nDescrição: Kit completo de mesa para tupia de coluna.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/mesa-para-tupia-kit-completo/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["fer1"], "reply": "*Compasso Riscador LCM*\n\nDescrição: Ferramenta para marcar linhas e círculos precisos.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/compasso-riscador-lcm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["fer2"], "reply": "*Graminho Gênesys*\n\nDescrição: Ferramenta de marcação precisa para marcenaria.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/graminho-genesys/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["fer3"], "reply": "*Graminho Riscador Gama*\n\nDescrição: Ferramenta de marcação com riscador para marcenaria.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/graminho-riscador-gama/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["fer4"], "reply": "*Lcm Riscador De Graminho*\n\nDescrição: Riscador específico para uso com graminhos.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/lcm-riscador-de-graminho/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["fer5"], "reply": "*Régua Deslizante Para Trilho T-Track*\n\nDescrição: Régua com batente para uso em trilhos T-Track.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/regua-deslizante-para-trilho-t-track/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gra1"], "reply": "*Mini Grampo LCM*\n\nDescrição: Mini grampo para fixação de peças pequenas.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/mini-grampo-lcm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gra2"], "reply": "*Grampo Duplo para Marchetaria*\n\nDescrição: Grampo específico para trabalhos de marchetaria.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/grampo-duplo-para-marchetaria/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gra3"], "reply": "*Grampo T-Track LCM*\n\nDescrição: Grampo para fixação em trilhos T-Track.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/grampo-t-track-lcm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gui1"], "reply": "*Trilho Guia Para Serra Manual 1,5m Com Os Grampos*\n\nDescrição: Trilho guia para cortes precisos com serra manual.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/trilho-guia-para-serra-manual-15m-com-os-grampos/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gui2"], "reply": "*Guia De Tupia Circular Manual – LCM*\n\nDescrição: Guia para fazer cortes circulares com tupia manual.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/guia-de-tupia-circular-lcm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    { "keywords": ["gui3"], "reply": "*T-Track 60cm e 80cm*\n\nDescrição: Trilho perfil T para bancadas e gabaritos.\n\n?? Mais detalhes: https://lcmelo.com.br/produtos/t-track-60cm-e-80cm/\n\nDigite *P4* para outros itens ou *menu*.", "pause_bot_after_reply": false },
+    {
+      "keywords": ["3", "orcamento", "cotacao", "preco", "comprar", "pedido", "vendas", "vendedor", "comercial", "solicitar orçamento", "falar com vendas"],
+      "reply": "Entendi. Para cotações, disponibilidade, preços e para falar com nossa equipe comercial, por favor, entre em contato:\n\n?? Telefone: *(11) 2641-3508*\n?? WhatsApp Vendas: *11 95323-9904*\n?? E-mail: *atendimento@lcmelo.com.br*\n\n*O assistente virtual será pausado para não atrapalhar.* Para reativá-lo, basta digitar *menu*. ??",
+      "pause_bot_after_reply": true
+    },
+    {
+      "keywords": ["4", "financeiro", "falar com financeiro"],
+      "reply": "Para falar com nosso setor financeiro, por favor, use o seguinte contato:\n\n?? WhatsApp Financeiro: *11 98810-7493*\n\nDigite *menu* para voltar.",

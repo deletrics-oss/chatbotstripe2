@@ -7,7 +7,18 @@ import { useAuth } from "@/hooks/useAuth";
 export default function Billing() {
   const { user } = useAuth();
 
-  const plans = [
+  interface Plan {
+    id: string;
+    name: string;
+    price: string;
+    period: string;
+    description: string;
+    features: string[];
+    recommended: boolean;
+    badge?: string;
+  }
+
+  const plans: Plan[] = [
     {
       id: 'free',
       name: 'Free Trial',
@@ -38,7 +49,6 @@ export default function Billing() {
         'Base de conhecimento',
       ],
       recommended: true,
-      badge: 'Disponível em Breve'
     },
     {
       id: 'full',
@@ -55,9 +65,32 @@ export default function Billing() {
         'Webhooks e integrações',
       ],
       recommended: false,
-      badge: 'Disponível em Breve'
     },
   ];
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      const res = await fetch(`/api/create-checkout-session?plan=${planId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to start checkout');
+      }
+
+      const { url } = await res.json();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      // You might want to show a toast here
+    }
+  };
 
   const getPlanExpiryText = () => {
     if (!user || !user.planExpiresAt) return null;
@@ -110,7 +143,7 @@ export default function Billing() {
                     </Badge>
                   </div>
                 )}
-                
+
                 {plan.badge && (
                   <div className="absolute top-4 right-4">
                     <Badge variant="secondary" className="text-xs">
@@ -143,10 +176,10 @@ export default function Billing() {
                   <Button
                     className="w-full"
                     variant={isCurrentPlan ? "outline" : plan.recommended ? "default" : "outline"}
-                    disabled={isCurrentPlan || plan.badge !== undefined}
-                    data-testid={`button-subscribe-${plan.id}`}
+                    onClick={() => handleSubscribe(plan.id)}
+                    disabled={isCurrentPlan || (plan.id === 'full' && !plan.badge)} // Keep Full disabled if no badge/ID yet, or enable if we had it. For now, user only gave Basic.
                   >
-                    {isCurrentPlan ? "Plano Atual" : plan.badge || "Assinar Agora"}
+                    {isCurrentPlan ? "Plano Atual" : "Assinar Agora"}
                   </Button>
                 </CardContent>
               </Card>
