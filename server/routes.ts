@@ -1497,11 +1497,15 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       const { slug } = req.params;
       const { message } = req.body;
 
+      console.log(`[WebChat] Received message for slug: ${slug}, message: ${message}`);
+
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
 
       const assistant = await storage.getWebAssistantBySlug(slug);
+      console.log(`[WebChat] Assistant found:`, assistant ? `ID: ${assistant.id}, Active: ${assistant.isActive}, LogicID: ${assistant.activeLogicId}` : 'NOT FOUND');
+
       if (!assistant || !assistant.isActive) {
         return res.status(404).json({ message: "Assistente não encontrado" });
       }
@@ -1511,10 +1515,17 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       let mediaType: 'image' | 'video' | 'audio' | 'document' | undefined;
       let usedAI = false;
 
-      if (assistant.activeLogicId) {
+      if (!assistant.activeLogicId) {
+        // No logic configured
+        console.log(`[WebChat] No logic configured for assistant ${assistant.id}`);
+        reply = "Olá! Este assistente ainda não foi configurado. Por favor, configure uma lógica para começar a usar.";
+      } else {
         const logic = await storage.getLogic(assistant.activeLogicId);
+        console.log(`[WebChat] Logic found:`, logic ? `ID: ${logic.id}, Type: ${logic.logicType}, Active: ${logic.isActive}` : 'NOT FOUND');
 
-        if (logic && logic.isActive) {
+        if (!logic || !logic.isActive) {
+          reply = "Desculpe, a lógica deste assistente não está disponível no momento.";
+        } else {
           // 1. Try JSON Logic first
           console.log(`[WebChat] Executing logic for ${slug}. Type: ${logic.logicType}`);
           const jsonResult = executeLogic(message, logic.logicJson as LogicJson);
