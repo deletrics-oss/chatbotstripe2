@@ -143,11 +143,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Attach live status and QR code from whatsappManager
       const devicesWithStatus = devices.map(device => {
-        const status = whatsappManager.getWhatsAppSessionStatus(device.id);
+        const rawStatus = whatsappManager.getWhatsAppSessionStatus(device.id);
         const qrCode = whatsappManager.getWhatsAppQRCode(device.id);
+
+        // Map backend status to frontend expected values
+        let status = device.connectionStatus;
+        if (rawStatus === 'READY') status = 'connected';
+        else if (rawStatus === 'QR_PENDING') status = 'qr_ready';
+        else if (rawStatus === 'INITIALIZING') status = 'connecting';
+        else if (rawStatus === 'DISCONNECTED') status = 'disconnected';
+
         return {
           ...device,
-          connectionStatus: status === 'OFFLINE' ? device.connectionStatus : status,
+          connectionStatus: status,
           qrCode: qrCode || device.qrCode
         };
       });

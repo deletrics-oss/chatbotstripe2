@@ -51,6 +51,42 @@ interface WhatsAppSession {
 const sessions = new Map<string, WhatsAppSession>();
 const pausedChats = new Map<string, string[]>();
 
+async function saveMessageToDb(
+  deviceId: string,
+  contactNumber: string,
+  content: string,
+  direction: 'incoming' | 'outgoing',
+  isFromBot: boolean = false
+) {
+  try {
+    // 1. Find or create conversation
+    const conversations = await storage.getConversations(deviceId);
+    let conversation = conversations.find(c => c.contactPhone === contactNumber);
+
+    if (!conversation) {
+      conversation = await storage.createConversation({
+        deviceId,
+        contactName: contactNumber, // Default name to number initially
+        contactPhone: contactNumber,
+        isActive: true,
+        unreadCount: 0,
+      });
+    }
+
+    // 2. Create message
+    await storage.createMessage({
+      conversationId: conversation.id,
+      direction,
+      content,
+      isFromBot,
+      timestamp: new Date(),
+    });
+
+  } catch (error) {
+    console.error(`[WhatsApp] Error saving message to DB:`, error);
+  }
+}
+
 export async function createWhatsAppSession(deviceId: string): Promise<void> {
   console.log(`[WhatsApp] Creating session for device: ${deviceId}`);
 
@@ -113,18 +149,20 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
     console.log(`[WhatsApp] QR Code generated for device: ${deviceId} (Length: ${qr.length})`);
     session.status = 'QR_PENDING';
 
-    qrcode.toDataURL(qr, (err, url) => {
+    qrcode.toDataURL(qr, async (err, url) => {
       if (!err && url) {
         session.qrCode = url;
+        await storage.updateDevice(deviceId, { connectionStatus: 'qr_ready', qrCode: url });
       }
     });
   });
 
   // Ready event
-  client.on('ready', () => {
+  client.on('ready', async () => {
     console.log(`[WhatsApp] Client ready for device: ${deviceId}`);
     session.status = 'READY';
     session.qrCode = null;
+    await storage.updateDevice(deviceId, { connectionStatus: 'connected', qrCode: null, lastConnectedAt: new Date() });
   });
 
   // Authenticated event
@@ -137,6 +175,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
     if (session.status !== 'DESTROYING') {
       console.warn(`[WhatsApp] Client disconnected for device: ${deviceId}, reason:`, reason);
       session.status = 'DISCONNECTED';
+      await storage.updateDevice(deviceId, { connectionStatus: 'disconnected' });
 
       // Auto-reconnect after 5 seconds
       setTimeout(async () => {
@@ -184,6 +223,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
       }
 
       console.log(`[WhatsApp] Processing message from ${userNumber}: "${message.body}"`);
+      await saveMessageToDb(deviceId, userNumber, message.body, 'incoming');
 
       // Get device configuration
       const device = await storage.getDevice(deviceId);
@@ -212,6 +252,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
       if (userMessageLower === '/status') {
         const statusMessage = `Bot Conectado!\n\n- *Dispositivo:* ${device.name}\n- *Status WhatsApp:* OK\n- *Servidor:* OK\n- *Gemini AI:* ${getAI() ? "OK" : "ERRO"}`;
         await client.sendMessage(userNumber, statusMessage);
+        await saveMessageToDb(deviceId, userNumber, statusMessage, 'outgoing', true);
         console.log(`[WhatsApp] Sent status message to ${userNumber}`);
         return;
       }
@@ -231,13 +272,16 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
             try {
               const media = await MessageMedia.fromUrl(result.mediaUrl);
               await client.sendMessage(userNumber, media, { caption: result.reply });
+              await saveMessageToDb(deviceId, userNumber, `[Media] ${result.reply}`, 'outgoing', true);
               console.log(`[WhatsApp] Sent reply with media to ${userNumber}`);
             } catch (imgError) {
               console.error(`[WhatsApp] Failed to send media, sending text only:`, imgError);
               await client.sendMessage(message.from, result.reply);
+              await saveMessageToDb(deviceId, userNumber, result.reply, 'outgoing', true);
             }
           } else {
             await client.sendMessage(message.from, result.reply);
+            await saveMessageToDb(deviceId, userNumber, result.reply, 'outgoing', true);
             console.log(`[WhatsApp] Sent text reply to ${userNumber}`);
           }
 
