@@ -1,259 +1,118 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useUser } from "@/hooks/use-user";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/hooks/useAuth";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, Key, ExternalLink } from "lucide-react";
 
 export default function Settings() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
-  const [firstName, setFirstName] = useState(user?.firstName || "");
-  const [lastName, setLastName] = useState(user?.lastName || "");
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [messageNotifications, setMessageNotifications] = useState(true);
-  const [dailySummaries, setDailySummaries] = useState(true);
-  const [adminSecret, setAdminSecret] = useState("");
+  const queryClient = useQueryClient();
+  const [geminiApiKey, setGeminiApiKey] = useState(user?.geminiApiKey || "");
 
-  const saveProfileMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", "/api/user/update", {
-        firstName,
-        lastName,
+  const saveKeyMutation = useMutation({
+    mutationFn: async (apiKey: string) => {
+      const response = await fetch("/api/user/gemini-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ geminiApiKey: apiKey }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to save API key");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
-      refreshUser?.();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
-        title: "Perfil atualizado",
-        description: "Suas informações foram salvas com sucesso",
+        title: "Sucesso!",
+        description: "Chave API salva com sucesso",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Erro",
-        description: "Não foi possível salvar as alterações",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const promoteToAdminMutation = useMutation({
-    mutationFn: async (secret: string) => {
-      const res = await apiRequest("POST", "/api/admin/promote", { secret });
-      return await res.json();
-    },
-    onSuccess: () => {
-      refreshUser?.();
-      setAdminSecret("");
-      toast({
-        title: "Promovido a Admin! 🎉",
-        description: "Você agora tem acesso total ao sistema.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Código Inválido",
-        description: error?.message || "O código secreto está incorreto.",
-        variant: "destructive",
-      });
-    },
-  });
+  const handleSave = () => {
+    saveKeyMutation.mutate(geminiApiKey);
+  };
 
   return (
-    <div className="p-6 md:p-8 space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Configurações</h1>
-        <p className="text-muted-foreground mt-1">Gerencie suas preferências e conta</p>
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Configurações</h1>
+        <p className="text-muted-foreground">
+          Gerencie suas preferências e configurações
+        </p>
       </div>
 
-      {/* Profile */}
       <Card>
         <CardHeader>
-          <CardTitle>Perfil</CardTitle>
-          <CardDescription>Suas informações pessoais</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Chave API Gemini
+          </CardTitle>
+          <CardDescription>
+            Configure sua chave API do Google Gemini para usar recursos de IA.
+            Sua chave será usada para gerar lógicas e respostas inteligentes.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={undefined} />
-              <AvatarFallback className="text-2xl">
-                {user?.firstName?.[0] || user?.email?.[0] || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium" data-testid="text-profile-name">
-                {user?.firstName || user?.email?.split('@')[0]}
-              </p>
-              <p className="text-sm text-muted-foreground" data-testid="text-profile-email">
-                {user?.email}
-              </p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="firstName">Nome</Label>
-              <Input
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                data-testid="input-first-name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="lastName">Sobrenome</Label>
-              <Input
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                data-testid="input-last-name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={user?.email || ""}
-                disabled
-                data-testid="input-email"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="gemini-key">Chave API</Label>
+            <Input
+              id="gemini-key"
+              type="password"
+              placeholder="AIzaSy..."
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+            />
+            <p className="text-sm text-muted-foreground">
+              Não tem uma chave?{" "}
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline inline-flex items-center gap-1"
+              >
+                Obtenha gratuitamente no Google AI Studio
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </p>
           </div>
 
           <Button
-            onClick={() => saveProfileMutation.mutate()}
-            disabled={saveProfileMutation.isPending}
-            data-testid="button-save-profile"
+            onClick={handleSave}
+            disabled={saveKeyMutation.isPending}
           >
-            {saveProfileMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            {saveKeyMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Salvar Chave API
           </Button>
+
+          {user?.geminiApiKey && (
+            <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+              <p className="text-sm text-green-800 dark:text-green-200">
+                ✓ Chave API configurada. Você pode usar recursos de IA.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Notificações</CardTitle>
-          <CardDescription>Configure suas preferências de notificação</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Notificações de Email</p>
-              <p className="text-sm text-muted-foreground">Receba atualizações por email</p>
-            </div>
-            <Switch
-              checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
-              data-testid="switch-email-notifications"
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Novas Mensagens</p>
-              <p className="text-sm text-muted-foreground">Notificar sobre novas conversas</p>
-            </div>
-            <Switch
-              checked={messageNotifications}
-              onCheckedChange={setMessageNotifications}
-              data-testid="switch-message-notifications"
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Resumos Diários</p>
-              <p className="text-sm text-muted-foreground">Receba resumo das atividades</p>
-            </div>
-            <Switch
-              checked={dailySummaries}
-              onCheckedChange={setDailySummaries}
-              data-testid="switch-daily-summaries"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Chatbot Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Chatbot</CardTitle>
-          <CardDescription>Configurações do bot automático</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Bot Automático Ativo</p>
-              <p className="text-sm text-muted-foreground">Ativar respostas automáticas</p>
-            </div>
-            <Switch defaultChecked data-testid="switch-bot-enabled" />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Modo Aprendizado</p>
-              <p className="text-sm text-muted-foreground">Bot aprende com conversas</p>
-            </div>
-            <Switch data-testid="switch-learning-mode" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Admin Promotion */}
-      {!user?.isAdmin && (
-        <Card className="border-dashed border-2">
-          <CardHeader>
-            <CardTitle>Promoção a Administrador</CardTitle>
-            <CardDescription>Digite o código secreto para desbloquear acesso total</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="admin-secret">Código Secreto</Label>
-              <Input
-                id="admin-secret"
-                type="password"
-                placeholder="Digite o código..."
-                value={adminSecret}
-                onChange={(e) => setAdminSecret(e.target.value)}
-                data-testid="input-admin-secret"
-              />
-            </div>
-            <Button
-              onClick={() => promoteToAdminMutation.mutate(adminSecret)}
-              disabled={!adminSecret || promoteToAdminMutation.isPending}
-              className="w-full"
-              data-testid="button-promote-admin"
-            >
-              {promoteToAdminMutation.isPending ? "Verificando..." : "Promover a Admin"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {user?.isAdmin && (
-        <Card className="border-primary">
-          <CardHeader>
-            <CardTitle>Status de Administrador ✅</CardTitle>
-            <CardDescription>Você tem acesso total ao sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Como administrador, você tem acesso ilimitado a todos os recursos, sem restrições de plano.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

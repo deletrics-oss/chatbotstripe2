@@ -520,7 +520,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const ai = getAI();
+      // Use user's API key if available, otherwise fall back to system key
+      const ai = getAI(user.geminiApiKey);
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -586,7 +587,8 @@ Responda APENAS com o JSON válido.`;
         });
       }
 
-      const ai = getAI();
+      // Use user's API key if available, otherwise fall back to system key
+      const ai = getAI(user.geminiApiKey);
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -1534,8 +1536,8 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
             const user = await storage.getUser(assistant.userId);
 
             // Check plan (Basic or Full) - AI requires paid plan usually, but let's be lenient for web chat if configured
-            if (user && getAI()) {
-              const ai = getAI();
+            if (user) {
+              const ai = getAI(user.geminiApiKey);
               if (ai) {
                 try {
                   // Load system prompt
@@ -1600,34 +1602,35 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
                 }
               }
             }
+          }
 
-            // 3. Final Fallback to JSON default if AI failed/skipped and we have no reply yet
-            if (!reply) {
-              reply = (logic.logicJson as LogicJson).default_reply || "Desculpe, não entendi sua mensagem.";
-            }
+          // 3. Final Fallback to JSON default if AI failed/skipped and we have no reply yet
+          if (!reply) {
+            reply = (logic.logicJson as LogicJson).default_reply || "Desculpe, não entendi sua mensagem.";
           }
         }
-
-        // If still no reply, use a generic fallback
-        if (!reply) {
-          reply = "Desculpe, não consegui processar sua mensagem no momento.";
-        }
-
-        res.json({
-          reply,
-          mediaUrl,
-          mediaType,
-          usedAI
-        });
-
-      } catch (error) {
-        console.error("CRITICAL Error processing web chat message:", error);
-        res.status(500).json({
-          message: "Failed to process message",
-          details: error instanceof Error ? error.message : String(error)
-        });
       }
-    });
+
+      // If still no reply, use a generic fallback
+      if (!reply) {
+        reply = "Desculpe, não consegui processar sua mensagem no momento.";
+      }
+
+      res.json({
+        reply,
+        mediaUrl,
+        mediaType,
+        usedAI
+      });
+
+    } catch (error) {
+      console.error("CRITICAL Error processing web chat message:", error);
+      res.status(500).json({
+        message: "Failed to process message",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   const io = new SocketIOServer(httpServer, {
@@ -1668,6 +1671,38 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Save user's Gemini API key
+  app.post('/api/user/gemini-key', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { geminiApiKey } = req.body;
+
+      // Validate the key by testing it
+      if (geminiApiKey) {
+        try {
+          const testAi = new GoogleGenAI({ apiKey: geminiApiKey });
+          await testAi.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: "Test",
+          });
+        } catch (error) {
+          return res.status(400).json({
+            message: "Chave API inválida. Verifique se a chave está correta."
+          });
+        }
+      }
+
+      const updated = await storage.updateUser(userId, { geminiApiKey });
+      res.json({
+        message: "Chave API salva com sucesso",
+        user: updated
+      });
+    } catch (error) {
+      console.error("Error saving Gemini API key:", error);
+      res.status(500).json({ message: "Failed to save API key" });
     }
   });
 
@@ -1866,7 +1901,10 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       const { prompt, logicName, sourceType, sourceContent } = req.body;
       const userId = req.user.claims.sub;
 
-      const ai = getAI();
+      const user = await storage.getUser(userId);
+
+      // Use user's API key if available, otherwise fall back to system key
+      const ai = getAI(user?.geminiApiKey);
       if (!ai) return res.status(503).json({ message: "AI service not configured" });
 
       // 1. Collect context from URL or text
