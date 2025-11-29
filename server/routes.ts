@@ -494,42 +494,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ============ DEBUG ROUTE ============
-  app.get('/api/debug/gemini', async (req, res) => {
-    const fs = require('fs');
-    const path = require('path');
-    const envPath = path.resolve(process.cwd(), '.env');
-    const exists = fs.existsSync(envPath);
-
-    let fileContent = '';
-    let fileKey = '';
-    if (exists) {
-      try {
-        fileContent = fs.readFileSync(envPath, 'utf8');
-        const match = fileContent.match(/GEMINI_API_KEY=(.*)/);
-        if (match && match[1]) fileKey = match[1].trim();
-      } catch (e) { fileContent = 'Error reading file'; }
-    }
-
-    const envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    const aiStatus = getAI() ? 'Initialized' : 'Not Initialized';
-
-    res.json({
-      cwd: process.cwd(),
-      envPath,
-      envFileExists: exists,
-      envKeyLength: envKey ? envKey.length : 0,
-      envKeyStart: envKey ? envKey.substring(0, 5) : 'N/A',
-      fileKeyLength: fileKey ? fileKey.length : 0,
-      fileKeyStart: fileKey ? fileKey.substring(0, 5) : 'N/A',
-      aiStatus,
-      processEnv: {
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Unset',
-        GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'Set' : 'Unset'
-      }
-    });
-  });
-
   // ============ GEMINI AI ROUTES ============
   app.post('/api/ai/generate-logic', isAuthenticated, async (req: any, res) => {
     try {
