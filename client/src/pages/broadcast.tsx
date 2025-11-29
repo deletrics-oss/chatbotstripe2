@@ -29,6 +29,7 @@ export default function BroadcastPage() {
   const [broadcastName, setBroadcastName] = useState("");
   const [message, setMessage] = useState("");
   const [aiPrompt, setAIPrompt] = useState("");
+  const [aiContext, setAiContext] = useState("");
   const [mediaType, setMediaType] = useState<"none" | "image" | "video">("none");
   const [mediaUrl, setMediaUrl] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
@@ -50,9 +51,29 @@ export default function BroadcastPage() {
     enabled: !!selectedDevice && isCreateDialogOpen,
   });
 
+  const { data: templates } = useQuery<any[]>({
+    queryKey: ['/api/broadcast-templates'],
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/broadcast-templates", {
+        name: broadcastName || `Modelo ${new Date().toLocaleString()}`,
+        content: message,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/broadcast-templates'] });
+      toast({ title: "Modelo salvo com sucesso!" });
+    },
+  });
+
   const generateAIMutation = useMutation({
     mutationFn: async (prompt: string) => {
-      const res = await apiRequest("POST", "/api/ai/generate-message", { prompt });
+      const res = await apiRequest("POST", "/api/ai/generate-broadcast", {
+        prompt,
+        context: aiContext
+      });
       return await res.json();
     },
     onSuccess: (data: any) => {
@@ -208,6 +229,35 @@ export default function BroadcastPage() {
                   onChange={(e) => setBroadcastName(e.target.value)}
                   data-testid="input-broadcast-name"
                 />
+              </div>
+
+              {/* Templates Section */}
+              <div className="flex gap-2 items-end p-3 bg-muted/30 rounded-md border">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-xs text-muted-foreground">Carregar Modelo (Template)</Label>
+                  <Select onValueChange={(val) => {
+                    const t = templates?.find((t: any) => t.id === val);
+                    if (t) setMessage(t.content);
+                  }}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Selecione um modelo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates?.map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => createTemplateMutation.mutate()}
+                  disabled={!message || createTemplateMutation.isPending}
+                  title="Salvar mensagem atual como modelo"
+                >
+                  Salvar Modelo
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -378,13 +428,25 @@ export default function BroadcastPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Textarea
-              placeholder="Ex: Crie uma mensagem de boas-vindas para meus clientes"
-              value={aiPrompt}
-              onChange={(e) => setAIPrompt(e.target.value)}
-              rows={4}
-              data-testid="textarea-ai-prompt"
-            />
+            <div className="space-y-2">
+              <Label>Contexto (Opcional)</Label>
+              <Textarea
+                placeholder="Ex: Lista de produtos: Camisa R$50, Calça R$80..."
+                value={aiContext}
+                onChange={(e) => setAiContext(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Instrução</Label>
+              <Textarea
+                placeholder="Ex: Crie uma mensagem de oferta para estes produtos"
+                value={aiPrompt}
+                onChange={(e) => setAIPrompt(e.target.value)}
+                rows={3}
+                data-testid="textarea-ai-prompt"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAIDialogOpen(false)}>

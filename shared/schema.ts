@@ -290,6 +290,24 @@ export const insertWebAssistantSchema = createInsertSchema(webAssistants).omit({
 export type WebAssistant = typeof webAssistants.$inferSelect;
 export type InsertWebAssistant = z.infer<typeof insertWebAssistantSchema>;
 
+// ============ BROADCAST TEMPLATES ============
+
+export const broadcastTemplates = pgTable("broadcast_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBroadcastTemplateSchema = createInsertSchema(broadcastTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BroadcastTemplate = typeof broadcastTemplates.$inferSelect;
+export type InsertBroadcastTemplate = z.infer<typeof insertBroadcastTemplateSchema>;
+
 // ============ RELATIONS ============
 
 export const usersRelations = relations(users, ({ many }) => ({

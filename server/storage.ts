@@ -27,6 +27,9 @@ import {
   type WebAssistant,
   type InsertWebAssistant,
   webAssistants,
+  broadcastTemplates,
+  type BroadcastTemplate,
+  type InsertBroadcastTemplate,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -119,9 +122,36 @@ export interface IStorage {
   createWebAssistant(assistant: InsertWebAssistant): Promise<WebAssistant>;
   updateWebAssistant(id: string, data: Partial<WebAssistant>): Promise<WebAssistant>;
   deleteWebAssistant(id: string): Promise<void>;
+  // Broadcast Templates
+  getBroadcastTemplates(userId: string): Promise<BroadcastTemplate[]>;
+  createBroadcastTemplate(template: InsertBroadcastTemplate): Promise<BroadcastTemplate>;
+  deleteBroadcastTemplate(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
+  // ... (previous methods)
+
+  // Broadcast Templates
+  async getBroadcastTemplates(userId: string): Promise<BroadcastTemplate[]> {
+    return await db
+      .select()
+      .from(broadcastTemplates)
+      .where(eq(broadcastTemplates.userId, userId))
+      .orderBy(desc(broadcastTemplates.createdAt));
+  }
+
+  async createBroadcastTemplate(template: InsertBroadcastTemplate): Promise<BroadcastTemplate> {
+    const [newTemplate] = await db
+      .insert(broadcastTemplates)
+      .values(template)
+      .returning();
+    return newTemplate;
+  }
+
+  async deleteBroadcastTemplate(id: string): Promise<void> {
+    await db.delete(broadcastTemplates).where(eq(broadcastTemplates.id, id));
+  }
+
 
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -619,6 +649,7 @@ export class MemStorage implements IStorage {
   private botBehaviors = new Map<string, BotBehaviorConfig>();
   private broadcasts = new Map<string, any>();
   private broadcastContacts = new Map<string, any>();
+  private broadcastTemplates = new Map<string, BroadcastTemplate>();
   private webAssistants = new Map<string, WebAssistant>();
 
   constructor() {
@@ -659,6 +690,7 @@ export class MemStorage implements IStorage {
         if (data.webAssistants) this.webAssistants = new Map(data.webAssistants.map((w: any) => [w.id, revive(w)]));
         if (data.broadcasts) this.broadcasts = new Map(data.broadcasts.map((b: any) => [b.id, revive(b)]));
         if (data.broadcastContacts) this.broadcastContacts = new Map(data.broadcastContacts.map((c: any) => [c.id, revive(c)]));
+        if (data.broadcastTemplates) this.broadcastTemplates = new Map(data.broadcastTemplates.map((t: any) => [t.id, revive(t)]));
 
         console.log(`[Storage] Data loaded from ${DB_FILE}`);
       }
@@ -680,6 +712,7 @@ export class MemStorage implements IStorage {
         broadcasts: Array.from(this.broadcasts.values()),
         broadcastContacts: Array.from(this.broadcastContacts.values()),
         webAssistants: Array.from(this.webAssistants.values()),
+        broadcastTemplates: Array.from(this.broadcastTemplates.values()),
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
     } catch (error) {
@@ -1096,6 +1129,28 @@ export class MemStorage implements IStorage {
 
   async deleteWebAssistant(id: string): Promise<void> {
     this.webAssistants.delete(id);
+    this.saveData();
+  }
+
+  // Broadcast Templates
+  async getBroadcastTemplates(userId: string): Promise<BroadcastTemplate[]> {
+    return Array.from(this.broadcastTemplates.values()).filter(t => t.userId === userId);
+  }
+
+  async createBroadcastTemplate(template: InsertBroadcastTemplate): Promise<BroadcastTemplate> {
+    const id = nanoid();
+    const newTemplate: BroadcastTemplate = {
+      ...template,
+      id,
+      createdAt: new Date(),
+    };
+    this.broadcastTemplates.set(id, newTemplate);
+    this.saveData();
+    return newTemplate;
+  }
+
+  async deleteBroadcastTemplate(id: string): Promise<void> {
+    this.broadcastTemplates.delete(id);
     this.saveData();
   }
 }

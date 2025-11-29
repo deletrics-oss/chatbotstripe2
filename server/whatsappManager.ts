@@ -413,6 +413,16 @@ export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
 
   try {
     const chats = await session.client.getChats();
+    console.log(`[WhatsApp] Found ${chats.length} chats for device ${deviceId}`);
+
+    if (chats.length > 0) {
+      console.log(`[WhatsApp] First chat sample:`, JSON.stringify({
+        id: chats[0].id,
+        name: chats[0].name,
+        isGroup: chats[0].isGroup
+      }, null, 2));
+    }
+
     // Use chat properties directly to avoid getContact() crash
     const contacts = chats
       .filter(chat => !chat.isGroup)
@@ -429,11 +439,13 @@ export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
             profilePicUrl: null // Skip profile pic to be safe and fast
           };
         } catch (err) {
+          console.error(`[WhatsApp] Error mapping chat:`, err);
           return null;
         }
       })
       .filter(c => c !== null);
 
+    console.log(`[WhatsApp] Returning ${contacts.length} valid contacts`);
     return contacts;
   } catch (error) {
     console.error(`[WhatsApp] Error getting contacts:`, error);

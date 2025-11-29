@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./localAuth";
-import { insertWhatsappDeviceSchema, insertConversationSchema, insertMessageSchema, insertLogicConfigSchema, insertWebAssistantSchema } from "@shared/schema";
+import { insertWhatsappDeviceSchema, insertConversationSchema, insertMessageSchema, insertLogicConfigSchema, insertWebAssistantSchema, insertBroadcastTemplateSchema } from "@shared/schema";
 import { executeLogic, type LogicJson } from "./logicExecutor";
 import { z } from "zod";
 import * as whatsappManager from "./whatsappManager";
@@ -2042,6 +2042,86 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
     } catch (error) {
       console.error("Generate and Save error:", error);
       res.status(500).json({ message: "Failed to generate and save logic" });
+    }
+  });
+
+  // ============ BROADCAST TEMPLATES ROUTES ============
+
+  app.get('/api/broadcast-templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const templates = await storage.getBroadcastTemplates(userId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching broadcast templates:", error);
+      res.status(500).json({ message: "Failed to fetch broadcast templates" });
+    }
+  });
+
+  app.post('/api/broadcast-templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = insertBroadcastTemplateSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      const template = await storage.createBroadcastTemplate(data);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating broadcast template:", error);
+      res.status(500).json({ message: "Failed to create broadcast template" });
+    }
+  });
+
+  app.delete('/api/broadcast-templates/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.deleteBroadcastTemplate(req.params.id);
+      res.json({ message: "Template deleted" });
+    } catch (error) {
+      console.error("Error deleting broadcast template:", error);
+      res.status(500).json({ message: "Failed to delete broadcast template" });
+    }
+  });
+
+  // AI Generation for Broadcasts
+  app.post('/api/ai/generate-broadcast', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) return res.status(403).json({ message: "User not found" });
+
+      const ai = getAI(user.geminiApiKey);
+      if (!ai) return res.status(503).json({ message: "Gemini AI not configured" });
+
+      const { prompt, context } = req.body;
+
+      if (!prompt) return res.status(400).json({ message: "Prompt is required" });
+
+      const systemPrompt = `Você é um assistente de marketing especializado em criar mensagens para disparos de WhatsApp.
+      Crie uma mensagem curta, direta e persuasiva baseada no pedido do usuário.
+      Use emojis para tornar a mensagem amigável.
+      Se o usuário fornecer um contexto (ex: lista de produtos), use-o.
+      Responda APENAS com o texto da mensagem.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        config: {
+          systemInstruction: systemPrompt,
+        },
+        contents: `Contexto: ${context || 'Nenhum'}\n\nPedido: ${prompt}`,
+      });
+
+      const text = response.text || "";
+      res.json({ message: text.trim() });
+    } catch (error) {
+      console.error("Error generating broadcast message:", error);
+      res.status(500).json({ message: "Failed to generate message" });
     }
   });
 
