@@ -666,7 +666,8 @@ Responda APENAS com o JSON válido.`;
         });
       }
 
-      const ai = getAI();
+      // Use user's API key if available, otherwise fall back to system key
+      const ai = getAI(user.geminiApiKey);
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -1360,7 +1361,8 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
         return res.status(403).json({ message: "User not found" });
       }
 
-      const ai = getAI();
+      // Use user's API key if available, otherwise fall back to system key
+      const ai = getAI(user.geminiApiKey);
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -1810,8 +1812,11 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
   app.post('/api/ai/edit-logic', isAuthenticated, async (req: any, res) => {
     try {
       const { currentJson, prompt, sourceType, sourceContent } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
 
-      const ai = getAI();
+      // Use user's API key if available, otherwise fall back to system key
+      const ai = getAI(user?.geminiApiKey);
       if (!ai) {
         return res.status(503).json({ message: "AI service not configured" });
       }
