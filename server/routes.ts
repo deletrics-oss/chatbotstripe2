@@ -33,8 +33,6 @@ function getAI() {
   // Fallback: Try reading .env file directly if key is missing
   if (!geminiKey) {
     try {
-      const fs = require('fs');
-      const path = require('path');
       const envPath = path.resolve(process.cwd(), '.env');
 
       if (fs.existsSync(envPath)) {
@@ -1345,6 +1343,7 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
         return res.status(403).json({ message: "User not found" });
       }
 
+      const ai = getAI();
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -1520,98 +1519,100 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
             const user = await storage.getUser(assistant.userId);
 
             // Check plan (Basic or Full) - AI requires paid plan usually, but let's be lenient for web chat if configured
-            if (user && ai) {
-              try {
-                // Load system prompt
-                const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
-                let systemInstruction = "Você é um assistente virtual de atendimento via chat web.";
+            if (user && getAI()) {
+              const ai = getAI();
+              if (ai) {
+                try {
+                  // Load system prompt
+                  const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
+                  let systemInstruction = "Você é um assistente virtual de atendimento via chat web.";
 
-                if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
-                  systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
-                }
-
-                // Append Behavior Personality
-                if (logic.behaviorConfigId) {
-                  const behavior = await storage.getBotBehavior(logic.behaviorConfigId);
-                  if (behavior) {
-                    systemInstruction += `\n\nDIRETRIZES DE PERSONALIDADE:\n`;
-                    systemInstruction += `Nome: ${behavior.name}\n`;
-                    systemInstruction += `Tom de voz: ${behavior.tone}\n`;
-                    systemInstruction += `Personalidade: ${behavior.personality}\n`;
-                    systemInstruction += `Instruções extras: ${behavior.customInstructions}\n`;
+                  if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
+                    systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
                   }
-                }
 
-                // Append JSON Logic Rules as Context (so AI knows the business rules)
-                if (logic.logicJson) {
-                  const logicJson = logic.logicJson as LogicJson;
-                  systemInstruction += `\n\nREGRAS DE NEGÓCIO E INFORMAÇÕES DO SITE (Use estas informações para responder):\n`;
-                  logicJson.rules.forEach(rule => {
-                    systemInstruction += `- Tópicos: "${rule.keywords.join(', ')}". Informação: "${rule.reply}"\n`;
+                  // Append Behavior Personality
+                  if (logic.behaviorConfigId) {
+                    const behavior = await storage.getBotBehavior(logic.behaviorConfigId);
+                    if (behavior) {
+                      systemInstruction += `\n\nDIRETRIZES DE PERSONALIDADE:\n`;
+                      systemInstruction += `Nome: ${behavior.name}\n`;
+                      systemInstruction += `Tom de voz: ${behavior.tone}\n`;
+                      systemInstruction += `Personalidade: ${behavior.personality}\n`;
+                      systemInstruction += `Instruções extras: ${behavior.customInstructions}\n`;
+                    }
+                  }
+
+                  // Append JSON Logic Rules as Context (so AI knows the business rules)
+                  if (logic.logicJson) {
+                    const logicJson = logic.logicJson as LogicJson;
+                    systemInstruction += `\n\nREGRAS DE NEGÓCIO E INFORMAÇÕES DO SITE (Use estas informações para responder):\n`;
+                    logicJson.rules.forEach(rule => {
+                      systemInstruction += `- Tópicos: "${rule.keywords.join(', ')}". Informação: "${rule.reply}"\n`;
+                    });
+                  }
+
+                  // Append Site Context (Raw Text) if available
+                  if (fs.existsSync(path.join(logicDir, 'site-context.txt'))) {
+                    const siteContext = fs.readFileSync(path.join(logicDir, 'site-context.txt'), 'utf8');
+                    systemInstruction += `\n\nCONTEÚDO COMPLETO DO SITE (Use para responder perguntas não cobertas pelas regras acima):\n${siteContext.slice(0, 15000)}\n`;
+                  }
+
+                  // === KNOWLEDGE BASE INTEGRATION ===
+                  // Fetch active knowledge base items for this user
+                  const knowledgeItems = await storage.getKnowledgeBase(assistant.userId);
+                  const activeKnowledge = knowledgeItems.filter(k => k.isActive);
+
+                  if (activeKnowledge.length > 0) {
+                    systemInstruction += `\n\nOUTRAS FONTES DE CONHECIMENTO:\n`;
+                    activeKnowledge.forEach(item => {
+                      systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
+                    });
+                  }
+                  // ==================================
+
+                  const aiResponse = await ai.models.generateContent({
+                    model: "gemini-2.0-flash-exp",
+                    config: { systemInstruction },
+                    contents: message,
                   });
+
+                  reply = aiResponse.text || "";
+                  usedAI = true;
+                } catch (aiError) {
+                  console.error("Error generating AI response for web chat:", aiError);
+                  // Don't fail completely, just return empty or fallback
                 }
-
-                // Append Site Context (Raw Text) if available
-                if (fs.existsSync(path.join(logicDir, 'site-context.txt'))) {
-                  const siteContext = fs.readFileSync(path.join(logicDir, 'site-context.txt'), 'utf8');
-                  systemInstruction += `\n\nCONTEÚDO COMPLETO DO SITE (Use para responder perguntas não cobertas pelas regras acima):\n${siteContext.slice(0, 15000)}\n`;
-                }
-
-                // === KNOWLEDGE BASE INTEGRATION ===
-                // Fetch active knowledge base items for this user
-                const knowledgeItems = await storage.getKnowledgeBase(assistant.userId);
-                const activeKnowledge = knowledgeItems.filter(k => k.isActive);
-
-                if (activeKnowledge.length > 0) {
-                  systemInstruction += `\n\nOUTRAS FONTES DE CONHECIMENTO:\n`;
-                  activeKnowledge.forEach(item => {
-                    systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
-                  });
-                }
-                // ==================================
-
-                const aiResponse = await ai.models.generateContent({
-                  model: "gemini-2.0-flash-exp",
-                  config: { systemInstruction },
-                  contents: message,
-                });
-
-                reply = aiResponse.text || "";
-                usedAI = true;
-              } catch (aiError) {
-                console.error("Error generating AI response for web chat:", aiError);
-                // Don't fail completely, just return empty or fallback
               }
             }
-          }
 
-          // 3. Final Fallback to JSON default if AI failed/skipped and we have no reply yet
-          if (!reply) {
-            reply = (logic.logicJson as LogicJson).default_reply || "Desculpe, não entendi sua mensagem.";
+            // 3. Final Fallback to JSON default if AI failed/skipped and we have no reply yet
+            if (!reply) {
+              reply = (logic.logicJson as LogicJson).default_reply || "Desculpe, não entendi sua mensagem.";
+            }
           }
         }
+
+        // If still no reply, use a generic fallback
+        if (!reply) {
+          reply = "Desculpe, não consegui processar sua mensagem no momento.";
+        }
+
+        res.json({
+          reply,
+          mediaUrl,
+          mediaType,
+          usedAI
+        });
+
+      } catch (error) {
+        console.error("CRITICAL Error processing web chat message:", error);
+        res.status(500).json({
+          message: "Failed to process message",
+          details: error instanceof Error ? error.message : String(error)
+        });
       }
-
-      // If still no reply, use a generic fallback
-      if (!reply) {
-        reply = "Desculpe, não consegui processar sua mensagem no momento.";
-      }
-
-      res.json({
-        reply,
-        mediaUrl,
-        mediaType,
-        usedAI
-      });
-
-    } catch (error) {
-      console.error("CRITICAL Error processing web chat message:", error);
-      res.status(500).json({
-        message: "Failed to process message",
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
+    });
 
   const httpServer = createServer(app);
   const io = new SocketIOServer(httpServer, {
@@ -1665,6 +1666,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
     try {
       const { prompt, sourceType, sourceContent } = req.body;
 
+      const ai = getAI();
       if (!ai) {
         return res.status(503).json({ message: "AI service not configured" });
       }
@@ -1759,6 +1761,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
     try {
       const { currentJson, prompt, sourceType, sourceContent } = req.body;
 
+      const ai = getAI();
       if (!ai) {
         return res.status(503).json({ message: "AI service not configured" });
       }
@@ -1848,6 +1851,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       const { prompt, logicName, sourceType, sourceContent } = req.body;
       const userId = req.user.claims.sub;
 
+      const ai = getAI();
       if (!ai) return res.status(503).json({ message: "AI service not configured" });
 
       // 1. Collect context from URL or text

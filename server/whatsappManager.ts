@@ -21,8 +21,6 @@ function getAI() {
   // Fallback: Try reading .env file directly if key is missing
   if (!geminiKey) {
     try {
-      const fs = require('fs');
-      const path = require('path');
       const envPath = path.resolve(process.cwd(), '.env');
 
       if (fs.existsSync(envPath)) {
