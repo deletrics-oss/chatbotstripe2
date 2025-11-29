@@ -58,12 +58,14 @@ async function saveMessageToDb(
   direction: 'incoming' | 'outgoing',
   isFromBot: boolean = false
 ) {
+  console.log(`[DB Debug] Saving message for device ${deviceId}, contact ${contactNumber}`);
   try {
     // 1. Find or create conversation
     const conversations = await storage.getConversations(deviceId);
     let conversation = conversations.find(c => c.contactPhone === contactNumber);
 
     if (!conversation) {
+      console.log(`[DB Debug] Creating new conversation for ${contactNumber}`);
       conversation = await storage.createConversation({
         deviceId,
         contactName: contactNumber, // Default name to number initially
@@ -71,6 +73,9 @@ async function saveMessageToDb(
         isActive: true,
         unreadCount: 0,
       });
+      console.log(`[DB Debug] Conversation created with ID: ${conversation.id}`);
+    } else {
+      console.log(`[DB Debug] Found existing conversation ID: ${conversation.id}`);
     }
 
     // 2. Create message
@@ -81,6 +86,7 @@ async function saveMessageToDb(
       isFromBot,
       timestamp: new Date(),
     });
+    console.log(`[DB Debug] Message saved successfully`);
 
   } catch (error) {
     console.error(`[WhatsApp] Error saving message to DB:`, error);
@@ -389,25 +395,28 @@ export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
 
   try {
     const chats = await session.client.getChats();
-    const contacts = await Promise.all(
-      chats
-        .filter(chat => !chat.isGroup)
-        .map(async (chat) => {
-          try {
-            const contact = await chat.getContact();
-            return {
-              id: contact.id._serialized,
-              name: contact.name || contact.pushname || contact.number,
-              number: contact.number,
-              profilePicUrl: await contact.getProfilePicUrl().catch(() => null)
-            };
-          } catch (err) {
-            return null;
-          }
-        })
-    );
+    // Use chat properties directly to avoid getContact() crash
+    const contacts = chats
+      .filter(chat => !chat.isGroup)
+      .map((chat) => {
+        try {
+          // chat.id._serialized is like "551199999999@c.us"
+          // chat.name is the display name
+          const number = chat.id.user; // "551199999999"
 
-    return contacts.filter(c => c !== null);
+          return {
+            id: chat.id._serialized,
+            name: chat.name || number,
+            number: number,
+            profilePicUrl: null // Skip profile pic to be safe and fast
+          };
+        } catch (err) {
+          return null;
+        }
+      })
+      .filter(c => c !== null);
+
+    return contacts;
   } catch (error) {
     console.error(`[WhatsApp] Error getting contacts:`, error);
     return [];
