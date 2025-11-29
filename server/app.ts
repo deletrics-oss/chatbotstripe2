@@ -89,8 +89,8 @@ export default async function runApp(
   }, () => {
     log(`serving on port ${port}`);
     // Restore WhatsApp sessions
-    import("./whatsappManager").then(({ restoreSessions }) => {
-      restoreSessions().catch(err => log(`Failed to restore sessions: ${err}`));
+    import("./whatsappManager").then(({ restoreWhatsAppSessions }) => {
+      restoreWhatsAppSessions().catch(err => log(`Failed to restore sessions: ${err}`));
     });
   });
 }

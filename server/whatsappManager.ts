@@ -1,6 +1,5 @@
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth, MessageMedia } = pkg;
-// @ts-ignore
 import qrcode from "qrcode";
 import { storage } from "./storage";
 import { executeLogic, type LogicJson } from "./logicExecutor";
@@ -8,27 +7,22 @@ import * as fs from "fs";
 import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize Gemini AI
 // Initialize Gemini AI lazily
 let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (aiInstance) return aiInstance;
 
-  // Try getting key from process.env
   let geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  // Fallback: Try reading .env file directly if key is missing
   if (!geminiKey) {
     try {
       const envPath = path.resolve(process.cwd(), '.env');
-
       if (fs.existsSync(envPath)) {
         const envContent = fs.readFileSync(envPath, 'utf8');
         const match = envContent.match(/GEMINI_API_KEY=(.*)/);
         if (match && match[1]) {
           geminiKey = match[1].trim();
-          // Also set it in process.env for future use
           process.env.GEMINI_API_KEY = geminiKey;
           console.log('[Gemini] Loaded API Key from .env file fallback');
         }
@@ -55,16 +49,22 @@ interface WhatsAppSession {
 }
 
 const sessions = new Map<string, WhatsAppSession>();
+const pausedChats = new Map<string, string[]>();
 
 export async function createWhatsAppSession(deviceId: string): Promise<void> {
   console.log(`[WhatsApp] Creating session for device: ${deviceId}`);
 
+  // If session already exists and is not disconnected, skip
   if (sessions.has(deviceId)) {
-    console.log(`[WhatsApp] Session already exists for device: ${deviceId}`);
-    return;
+    const existingSession = sessions.get(deviceId)!;
+    if (existingSession.status !== 'DISCONNECTED' && existingSession.status !== 'DESTROYING') {
+      console.log(`[WhatsApp] Session already exists for device: ${deviceId}`);
+      return;
+    }
+    // Destroy old session before creating new one
+    await destroyWhatsAppSession(deviceId);
   }
 
-  // Configure puppeteer to use system Chromium on Ubuntu
   const puppeteerConfig: any = {
     headless: true,
     args: [
@@ -78,8 +78,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
     ]
   };
 
-  // Use system Chromium if available (Ubuntu production)
-  // User must install: sudo apt install chromium-browser
+  // Use system Chromium if available
   if (process.env.NODE_ENV === 'production' || process.platform === 'linux') {
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
       puppeteerConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -95,8 +94,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
     puppeteer: puppeteerConfig,
     webVersionCache: {
       type: "remote",
-      remotePath:
-        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+      remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
     },
   });
 
@@ -108,273 +106,166 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
   };
 
   sessions.set(deviceId, session);
+  pausedChats.set(deviceId, []);
 
-  client.on('qr', async (qr) => {
+  // QR Code event
+  client.on('qr', (qr) => {
     console.log(`[WhatsApp] QR Code generated for device: ${deviceId} (Length: ${qr.length})`);
     session.status = 'QR_PENDING';
 
-    try {
-      const qrDataUrl = await qrcode.toDataURL(qr);
-      session.qrCode = qrDataUrl;
-
-      // Update device with QR code
-      await storage.updateDevice(deviceId, {
-        qrCode: qrDataUrl,
-        connectionStatus: 'qr_ready'
-      });
-    } catch (error) {
-      console.error(`[WhatsApp] Error generating QR code:`, error);
-    }
-  });
-
-  client.on('loading_screen', (percent, message) => {
-    console.log(`[WhatsApp] Loading screen for device ${deviceId}: ${percent}% - ${message}`);
-  });
-
-  client.on('ready', async () => {
-    console.log(`[WhatsApp] Client ready for device: ${deviceId}`);
-    session.status = 'READY';
-    session.qrCode = null;
-
-    // Update device status to connected
-    await storage.updateDevice(deviceId, {
-      connectionStatus: 'connected',
-      qrCode: null
+    qrcode.toDataURL(qr, (err, url) => {
+      if (!err && url) {
+        session.qrCode = url;
+      }
     });
   });
 
+  // Ready event
+  client.on('ready', () => {
+    console.log(`[WhatsApp] Client ready for device: ${deviceId}`);
+    session.status = 'READY';
+    session.qrCode = null;
+  });
+
+  // Authenticated event
   client.on('authenticated', () => {
     console.log(`[WhatsApp] Client authenticated for device: ${deviceId}`);
   });
 
-  client.on('auth_failure', async (msg) => {
-    console.error(`[WhatsApp] Auth failure for device ${deviceId}:`, msg);
-    session.status = 'DISCONNECTED';
-    await storage.updateDevice(deviceId, {
-      connectionStatus: 'disconnected'
-    });
-  });
-
+  // Disconnected event - IMPORTANTE para reconexão
   client.on('disconnected', async (reason) => {
-    console.log(`[WhatsApp] Client disconnected for device: ${deviceId}. Reason:`, reason);
-
     if (session.status !== 'DESTROYING') {
+      console.warn(`[WhatsApp] Client disconnected for device: ${deviceId}, reason:`, reason);
       session.status = 'DISCONNECTED';
-      await storage.updateDevice(deviceId, {
-        connectionStatus: 'disconnected'
-      });
+
+      // Auto-reconnect after 5 seconds
+      setTimeout(async () => {
+        if (sessions.has(deviceId) && sessions.get(deviceId)!.status === 'DISCONNECTED') {
+          console.log(`[WhatsApp] Auto-reconnecting device: ${deviceId}`);
+          await destroyWhatsAppSession(deviceId);
+          await createWhatsAppSession(deviceId);
+        }
+      }, 5000);
     }
   });
 
+  // Loading screen event
+  client.on('loading_screen', (percent, message) => {
+    console.log(`[WhatsApp] Loading screen for device ${deviceId}: ${percent}% - ${message}`);
+  });
+
+  // Message event
   client.on('message', async (message) => {
-    // Handle incoming messages
-    console.log(`[WhatsApp] Message received on device ${deviceId}:`, message.body);
-
-    // Ignore group messages and status updates
-    if (message.from.endsWith('@g.us') || message.isStatus) {
-      return;
-    }
-
-    // Ignore own messages to prevent loops
-    if (message.fromMe) {
-      return;
-    }
-
     try {
-      // Verify device exists
-      const device = await storage.getDevice(deviceId);
-      if (!device) {
-        console.error(`[WhatsApp] Device ${deviceId} not found in storage`);
+      const userNumber = message.from;
+
+      // Ignore group messages and status
+      if (userNumber.endsWith('@g.us') || message.isStatus) {
         return;
       }
 
-      // Store conversation if it doesn't exist
-      const conversations = await storage.getConversations(deviceId);
-      const existingConversation = conversations.find(c => c.contactPhone === message.from);
-
-      let conversationId: string;
-
-      if (!existingConversation) {
-        const contact = await message.getContact();
-        const newConversation = await storage.createConversation({
-          deviceId,
-          contactName: contact.name || contact.pushname || message.from,
-          contactPhone: message.from,
-          lastMessageAt: new Date(),
-          unreadCount: 1,
-          isActive: true
-        });
-        conversationId = newConversation.id;
-      } else {
-        conversationId = existingConversation.id;
+      // ANTI-LOOP: Ignore messages from self
+      if (message.fromMe) {
+        console.log(`[WhatsApp] Ignoring own message from device: ${deviceId}`);
+        return;
       }
 
-      // Store the incoming message
-      await storage.createMessage({
-        conversationId,
-        content: message.body,
-        direction: 'incoming',
-        isFromBot: false,
-        timestamp: new Date()
-      });
-
-      // Process message with bot logic and respond if needed
-      if (device.activeLogicId && !device.isPaused) {
-        try {
-          const logic = await storage.getLogic(device.activeLogicId);
-
-          if (logic && logic.isActive) {
-            let reply = "";
-            let shouldPause = false;
-
-            // HYBRID LOGIC: Check for /ia command
-            if (logic.logicType === 'hybrid' && message.body.trim().toLowerCase().startsWith('/ia')) {
-              const ai = getAI();
-              if (!ai) {
-                reply = "⚠️ Erro: IA não configurada no servidor.";
-              } else {
-                const userPrompt = message.body.substring(3).trim(); // Remove "/ia "
-                if (!userPrompt) {
-                  reply = "Por favor, digite algo após o comando /ia. Ex: /ia qual o preço?";
-                } else {
-                  try {
-                    // Load system prompt from file
-                    const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
-                    let systemInstruction = "Você é um assistente útil.";
-
-                    if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
-                      systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
-                    }
-
-                    const aiResponse = await ai.models.generateContent({
-                      model: "gemini-2.0-flash-exp",
-                      config: { systemInstruction },
-                      contents: userPrompt,
-                    });
-
-                    reply = aiResponse.text || "Desculpe, não consegui gerar uma resposta.";
-                  } catch (aiError) {
-                    console.error("Error generating AI response:", aiError);
-                    reply = "Desculpe, ocorreu um erro ao processar sua solicitação com a IA.";
-                  }
-                }
-              }
-            } else {
-              // STANDARD LOGIC (JSON)
-              const result = executeLogic(message.body, logic.logicJson as LogicJson);
-              reply = result.reply;
-              shouldPause = result.shouldPause;
-
-              // Handle media if present in logic rule
-              if (result.mediaUrl) {
-                try {
-                  const media = await MessageMedia.fromUrl(result.mediaUrl);
-                  await message.reply(media);
-                } catch (mediaError) {
-                  console.error("Error sending media from logic:", mediaError);
-                }
-              }
-
-              // AUTO-FALLBACK TO AI (Hybrid Mode)
-              // If no JSON match found AND logic is hybrid AND user has paid plan
-              if (!reply && logic.logicType === 'hybrid') {
-                const user = await storage.getUser(device.userId);
-
-                // Check plan (Basic or Full)
-                if (user && user.currentPlan !== 'free') {
-                  const ai = getAI();
-                  if (!ai) {
-                    console.warn("AI not configured for hybrid fallback");
-                  } else {
-                    try {
-                      // Load system prompt from file
-                      const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
-                      let systemInstruction = "Você é um assistente útil de atendimento via WhatsApp.";
-
-                      if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
-                        systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
-                      }
-
-                      // Append Behavior Personality if selected
-                      if (logic.behaviorConfigId) {
-                        const behavior = await storage.getBotBehavior(logic.behaviorConfigId);
-                        if (behavior) {
-                          systemInstruction += `\n\nDIRETRIZES DE PERSONALIDADE:\n`;
-                          systemInstruction += `Nome: ${behavior.name}\n`;
-                          systemInstruction += `Tom de voz: ${behavior.tone}\n`;
-                          systemInstruction += `Personalidade: ${behavior.personality}\n`;
-                          systemInstruction += `Instruções extras: ${behavior.customInstructions}\n`;
-                        }
-                      }
-
-                      const aiResponse = await ai.models.generateContent({
-                        model: "gemini-2.0-flash-exp",
-                        config: { systemInstruction },
-                        contents: message.body,
-                      });
-
-                      reply = aiResponse.text || "";
-                    } catch (aiError) {
-                      console.error("Error generating AI fallback response:", aiError);
-                    }
-                  }
-                }
-              }
-
-            }
-
-            // Send auto-response if there is one (Common for both /ia and Auto-Fallback)
-            if (reply) {
-              await message.reply(reply);
-
-              // Store bot response
-              await storage.createMessage({
-                conversationId,
-                content: reply,
-                direction: 'outgoing',
-                isFromBot: true,
-                timestamp: new Date()
-              });
-
-              // Pause bot if logic says so
-              if (shouldPause) {
-                await storage.updateDevice(deviceId, {
-                  isPaused: true
-                });
-                console.log(`[WhatsApp] Bot paused for device ${deviceId} after reply`);
-              }
-            }
-          }
-        } catch (botError) {
-          console.error(`[WhatsApp] Error executing bot logic for device ${deviceId}:`, botError);
+      // ANTI-LOOP: Ignore messages from other bots
+      const otherBotJids: string[] = [];
+      for (const [sId, sess] of sessions.entries()) {
+        if (sId !== deviceId && sess.status === 'READY' && sess.client.info) {
+          otherBotJids.push(sess.client.info.wid._serialized);
         }
       }
 
+      if (otherBotJids.includes(message.from)) {
+        console.log(`[WhatsApp] [Anti-Loop] Ignoring message from bot ${message.from}`);
+        return;
+      }
+
+      // Get device configuration
+      const device = await storage.getWhatsappDevice(deviceId);
+      if (!device) {
+        console.log(`[WhatsApp] Device ${deviceId} not found in database`);
+        return;
+      }
+
+      // Check if chat is paused
+      const sessionPausedChats = pausedChats.get(deviceId) || [];
+      const isPaused = sessionPausedChats.includes(userNumber);
+      const userMessageLower = message.body.toLowerCase().trim();
+      const unpauseKeywords = ["menu", "ajuda", "inicio", "início", "start", "voltar", "sair", "opcoes", "opções"];
+
+      if (isPaused) {
+        if (unpauseKeywords.includes(userMessageLower)) {
+          pausedChats.set(deviceId, sessionPausedChats.filter(id => id !== userNumber));
+          console.log(`[WhatsApp] Chat ${userNumber} was REACTIVATED by user on device ${deviceId}`);
+        } else {
+          console.log(`[WhatsApp] Chat ${userNumber} is paused on device ${deviceId}. Ignoring message.`);
+          return;
+        }
+      }
+
+      // Status command
+      if (userMessageLower === '/status') {
+        const statusMessage = `Bot Conectado!\n\n- *Dispositivo:* ${device.name}\n- *Status WhatsApp:* OK\n- *Servidor:* OK\n- *Gemini AI:* ${getAI() ? "OK" : "ERRO"}`;
+        await client.sendMessage(userNumber, statusMessage);
+        return;
+      }
+
+      // Execute logic if configured
+      if (device.activeLogicId) {
+        const logic = await storage.getLogic(device.activeLogicId);
+
+        if (logic && logic.isActive && logic.logicJson) {
+          console.log(`[WhatsApp] Executing logic ${logic.name} for device ${deviceId}`);
+
+          const result = executeLogic(message.body, logic.logicJson as LogicJson);
+
+          // Send reply
+          if (result.mediaUrl) {
+            try {
+              const media = await MessageMedia.fromUrl(result.mediaUrl);
+              await client.sendMessage(userNumber, media, { caption: result.reply });
+              console.log(`[WhatsApp] Sent reply with media to ${userNumber}`);
+            } catch (imgError) {
+              console.error(`[WhatsApp] Failed to send media, sending text only:`, imgError);
+              await message.reply(result.reply);
+            }
+          } else {
+            await message.reply(result.reply);
+          }
+
+          // Handle pause
+          if (result.shouldPause) {
+            const currentPaused = pausedChats.get(deviceId) || [];
+            if (!currentPaused.includes(userNumber)) {
+              currentPaused.push(userNumber);
+              pausedChats.set(deviceId, currentPaused);
+              console.log(`[WhatsApp] Chat ${userNumber} was PAUSED by logic on device ${deviceId}`);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error(`[WhatsApp] Error handling message for device ${deviceId}:`, error);
     }
   });
 
+  // Initialize client
   try {
-    await client.initialize();
     console.log(`[WhatsApp] Client initialized for device: ${deviceId}`);
-  } catch (error) {
-    console.error(`[WhatsApp] Error initializing client for device ${deviceId}:`, error);
+    await client.initialize();
+  } catch (err) {
+    console.error(`[WhatsApp] Error initializing client for device ${deviceId}:`, err);
     session.status = 'DISCONNECTED';
 
-    // Clean up session and puppeteer resources
+    // Try to destroy failed session
     try {
       await client.destroy();
-    } catch (destroyError) {
-      console.error(`[WhatsApp] Error destroying failed session:`, destroyError);
+    } catch (destroyErr) {
+      console.error(`[WhatsApp] Error destroying failed session:`, destroyErr);
     }
-
-    sessions.delete(deviceId);
-
-    await storage.updateDevice(deviceId, {
-      connectionStatus: 'disconnected', // Changed from 'error' to 'disconnected'
-      qrCode: null
-    });
   }
 }
 
@@ -382,6 +273,7 @@ export async function destroyWhatsAppSession(deviceId: string): Promise<boolean>
   const session = sessions.get(deviceId);
 
   if (!session) {
+    console.log(`[WhatsApp] No session found for device: ${deviceId}`);
     return false;
   }
 
@@ -391,126 +283,100 @@ export async function destroyWhatsAppSession(deviceId: string): Promise<boolean>
   try {
     await session.client.destroy();
     sessions.delete(deviceId);
-
-    await storage.updateDevice(deviceId, {
-      connectionStatus: 'disconnected',
-      qrCode: null
-    });
-
+    pausedChats.delete(deviceId);
+    console.log(`[WhatsApp] Session destroyed for device: ${deviceId}`);
     return true;
   } catch (error) {
-    console.error(`[WhatsApp] Error destroying session:`, error);
+    console.error(`[WhatsApp] Error destroying session for device ${deviceId}:`, error);
+    sessions.delete(deviceId);
+    pausedChats.delete(deviceId);
     return false;
   }
 }
 
-export function getSessionStatus(deviceId: string): string {
+export function getWhatsAppSessionStatus(deviceId: string): string {
   const session = sessions.get(deviceId);
-  return session ? session.status : 'OFFLINE';
+  return session?.status || 'OFFLINE';
 }
 
-export function getSessionQRCode(deviceId: string): string | null {
+export function getWhatsAppQRCode(deviceId: string): string | null {
   const session = sessions.get(deviceId);
-  return session ? session.qrCode : null;
+  return session?.qrCode || null;
 }
 
 export async function sendWhatsAppMessage(
   deviceId: string,
-  phoneNumber: string,
-  message: string,
-  mediaUrl?: string,
-  mediaType?: 'image' | 'video' | 'audio' | 'document'
+  number: string,
+  text: string
 ): Promise<boolean> {
   const session = sessions.get(deviceId);
 
   if (!session || session.status !== 'READY') {
+    console.log(`[WhatsApp] Cannot send message: device ${deviceId} is not ready`);
     return false;
   }
 
   try {
-    const chatId = phoneNumber.includes('@c.us') ? phoneNumber : `${phoneNumber}@c.us`;
-
-    if (mediaUrl) {
-      try {
-        // Create media object from URL (supports Data URIs too)
-        const media = await MessageMedia.fromUrl(mediaUrl);
-
-        // Send media with caption
-        await session.client.sendMessage(chatId, media, { caption: message });
-        return true;
-      } catch (mediaError) {
-        console.error(`[WhatsApp] Error creating/sending media:`, mediaError);
-        // Fallback to text only if media fails? 
-        // Better to fail so we know media didn't go through, or maybe send text with error note?
-        // Let's try sending text as fallback but log the error
-        console.log(`[WhatsApp] Fallback to text-only message`);
-        await session.client.sendMessage(chatId, message);
-        return true; // Return true as "message sent" (even if media failed)
-      }
-    } else {
-      await session.client.sendMessage(chatId, message);
-      return true;
-    }
+    const chatId = `${number.replace(/\D/g, '')}@c.us`;
+    await session.client.sendMessage(chatId, text);
+    console.log(`[WhatsApp] Message sent to ${chatId} from device ${deviceId}`);
+    return true;
   } catch (error) {
-    console.error(`[WhatsApp] Error sending message:`, error);
+    console.error(`[WhatsApp] Error sending message from device ${deviceId}:`, error);
     return false;
   }
-}
-
-export function getAllSessions(): Array<{ deviceId: string; status: string }> {
-  return Array.from(sessions.entries()).map(([deviceId, session]) => ({
-    deviceId,
-    status: session.status
-  }));
 }
 
 export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
   const session = sessions.get(deviceId);
 
   if (!session || session.status !== 'READY') {
-    console.error(`[WhatsApp] Cannot get contacts - session not ready for device: ${deviceId}`);
     return [];
   }
 
   try {
     const chats = await session.client.getChats();
-
     const contacts = await Promise.all(
-      chats.map(async (chat: any) => {
-        const contact = await chat.getContact();
-        return {
-          id: chat.id._serialized,
-          name: contact.name || contact.pushname || chat.name || chat.id.user,
-          phone: chat.id._serialized,
-          isGroup: chat.isGroup,
-        };
-      })
+      chats
+        .filter(chat => !chat.isGroup)
+        .map(async (chat) => {
+          try {
+            const contact = await chat.getContact();
+            return {
+              id: contact.id._serialized,
+              name: contact.name || contact.pushname || contact.number,
+              number: contact.number,
+              profilePicUrl: await contact.getProfilePicUrl().catch(() => null)
+            };
+          } catch (err) {
+            return null;
+          }
+        })
     );
 
-    console.log(`[WhatsApp] Found ${contacts.length} contacts for device ${deviceId}`);
-    return contacts;
+    return contacts.filter(c => c !== null);
   } catch (error) {
     console.error(`[WhatsApp] Error getting contacts:`, error);
     return [];
   }
 }
 
-export async function restoreSessions(): Promise<void> {
+export async function restoreWhatsAppSessions(): Promise<void> {
   console.log('[WhatsApp] Restoring sessions...');
-  try {
-    const devices = await storage.getAllDevices();
-    console.log(`[WhatsApp] Found ${devices.length} devices to restore.`);
 
-    for (const device of devices) {
-      // Only restore if it was previously connected or qr_ready (to keep it alive)
-      // Or maybe just restore all to be safe? 
-      // Let's restore all so users can reconnect if needed.
-      console.log(`[WhatsApp] Restoring session for device: ${device.id} (${device.name})`);
-      createWhatsAppSession(device.id).catch(err => {
-        console.error(`[WhatsApp] Failed to restore session for device ${device.id}:`, err);
-      });
-    }
-  } catch (error) {
-    console.error('[WhatsApp] Error restoring sessions:', error);
+  const devices = await storage.getAllWhatsappDevices();
+
+  if (devices.length === 0) {
+    console.log('[WhatsApp] No devices to restore.');
+    return;
   }
+
+  console.log(`[WhatsApp] Found ${devices.length} devices to restore.`);
+
+  for (const device of devices) {
+    console.log(`[WhatsApp] Restoring session for device: ${device.id} (${device.name})`);
+    await createWhatsAppSession(device.id);
+  }
+
+  console.log('[WhatsApp] Session restoration complete.');
 }

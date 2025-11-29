@@ -224,8 +224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized: You don't own this device" });
       }
 
-      const qrCode = whatsappManager.getSessionQRCode(req.params.id);
-      const status = whatsappManager.getSessionStatus(req.params.id);
+      const qrCode = whatsappManager.getWhatsAppQRCode(req.params.id);
+      const status = whatsappManager.getWhatsAppSessionStatus(req.params.id);
 
       res.json({ qrCode, status });
     } catch (error) {
