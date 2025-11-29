@@ -156,7 +156,10 @@ export default function BroadcastPage() {
 
   const handleContactToggle = (phone: string, checked: boolean) => {
     if (checked) {
-      setSelectedContacts(prev => [...prev, phone]);
+      setSelectedContacts(prev => {
+        if (prev.includes(phone)) return prev;
+        return [...prev, phone];
+      });
     } else {
       setSelectedContacts(prev => prev.filter(p => p !== phone));
       setSelectAll(false);
@@ -164,6 +167,8 @@ export default function BroadcastPage() {
   };
 
   const handleCreateBroadcast = () => {
+    console.log("Creating broadcast with:", { broadcastName, selectedDevice, message, contactsCount: selectedContacts.length });
+
     if (!broadcastName || !selectedDevice || !message || selectedContacts.length === 0) {
       toast({
         title: "Campos obrigatórios",
@@ -535,12 +540,15 @@ export default function BroadcastPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setBroadcastName(`${broadcast.name} (Reenvio)`);
-                        setMessage(broadcast.message);
-                        setSelectedDevice(broadcast.deviceId);
-                        setMediaType(broadcast.mediaType || 'none');
-                        setMediaUrl(broadcast.mediaUrl || '');
-                        setIsCreateDialogOpen(true);
+                        resetForm();
+                        setTimeout(() => {
+                          setBroadcastName(`${broadcast.name} (Reenvio)`);
+                          setMessage(broadcast.message);
+                          setSelectedDevice(broadcast.deviceId);
+                          setMediaType(broadcast.mediaType || 'none');
+                          setMediaUrl(broadcast.mediaUrl || '');
+                          setIsCreateDialogOpen(true);
+                        }, 0);
                       }}
                       title="Duplicar e Editar"
                     >
