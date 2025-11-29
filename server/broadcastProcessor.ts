@@ -51,6 +51,20 @@ export async function processBroadcast(broadcastId: string) {
         return;
       }
 
+      // Check if contact phone is valid
+      if (!nextContact.contactPhone) {
+        console.error(`[Broadcast] Invalid contact phone for contact ID ${nextContact.id}`);
+        await storage.updateBroadcastContact(nextContact.id, {
+          status: 'failed',
+          errorMessage: 'Invalid phone number',
+        });
+        // Update broadcast failed count
+        await storage.updateBroadcast(broadcastId, {
+          failedCount: broadcast.failedCount + 1,
+        });
+        return;
+      }
+
       // Send message
       console.log(`[Broadcast] Sending message to ${nextContact.contactPhone}`);
 

@@ -366,7 +366,9 @@ export function getWhatsAppQRCode(deviceId: string): string | null {
 export async function sendWhatsAppMessage(
   deviceId: string,
   number: string,
-  text: string
+  text: string,
+  mediaUrl?: string,
+  mediaType?: string
 ): Promise<boolean> {
   const session = sessions.get(deviceId);
 
@@ -377,8 +379,24 @@ export async function sendWhatsAppMessage(
 
   try {
     const chatId = `${number.replace(/\D/g, '')}@c.us`;
-    await session.client.sendMessage(chatId, text);
-    console.log(`[WhatsApp] Message sent to ${chatId} from device ${deviceId}`);
+
+    if (mediaUrl) {
+      try {
+        const media = await MessageMedia.fromUrl(mediaUrl);
+        await session.client.sendMessage(chatId, media, { caption: text });
+        console.log(`[WhatsApp] Media message sent to ${chatId} from device ${deviceId}`);
+      } catch (mediaError) {
+        console.error(`[WhatsApp] Error sending media, falling back to text:`, mediaError);
+        await session.client.sendMessage(chatId, text);
+      }
+    } else {
+      await session.client.sendMessage(chatId, text);
+      console.log(`[WhatsApp] Text message sent to ${chatId} from device ${deviceId}`);
+    }
+
+    // Save to DB
+    await saveMessageToDb(deviceId, number, mediaUrl ? `[Media] ${text}` : text, 'outgoing', true);
+
     return true;
   } catch (error) {
     console.error(`[WhatsApp] Error sending message from device ${deviceId}:`, error);
