@@ -39,20 +39,30 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--single-process',
       '--disable-gpu'
     ]
   };
 
   // Use system Chromium if available (Ubuntu production)
   // User must install: sudo apt install chromium-browser
-  if (process.env.NODE_ENV === 'production' && process.env.PUPPETEER_EXECUTABLE_PATH) {
-    puppeteerConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (process.env.NODE_ENV === 'production' || process.platform === 'linux') {
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      puppeteerConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    } else if (fs.existsSync('/usr/bin/chromium-browser')) {
+      puppeteerConfig.executablePath = '/usr/bin/chromium-browser';
+    } else if (fs.existsSync('/usr/bin/chromium')) {
+      puppeteerConfig.executablePath = '/usr/bin/chromium';
+    }
   }
 
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: deviceId }),
-    puppeteer: puppeteerConfig
+    puppeteer: puppeteerConfig,
+    webVersionCache: {
+      type: "remote",
+      remotePath:
+        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+    },
   });
 
   const session: WhatsAppSession = {
