@@ -21,10 +21,18 @@ const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 // Initialize Gemini AI (aceita GEMINI_API_KEY ou GOOGLE_API_KEY)
-const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const ai = geminiKey
-  ? new GoogleGenAI({ apiKey: geminiKey })
-  : null;
+// Initialize Gemini AI lazily
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (aiInstance) return aiInstance;
+
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (geminiKey) {
+    aiInstance = new GoogleGenAI({ apiKey: geminiKey });
+  }
+  return aiInstance;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -472,6 +480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const ai = getAI();
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -537,6 +546,7 @@ Responda APENAS com o JSON válido.`;
         });
       }
 
+      const ai = getAI();
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }
@@ -614,6 +624,7 @@ Responda APENAS com o JSON válido.`;
         });
       }
 
+      const ai = getAI();
       if (!ai) {
         return res.status(503).json({ message: "Gemini AI not configured - missing API key" });
       }

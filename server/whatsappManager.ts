@@ -9,8 +9,18 @@ import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 
 // Initialize Gemini AI
-const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const ai = geminiKey ? new GoogleGenAI({ apiKey: geminiKey }) : null;
+// Initialize Gemini AI lazily
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (aiInstance) return aiInstance;
+
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (geminiKey) {
+    aiInstance = new GoogleGenAI({ apiKey: geminiKey });
+  }
+  return aiInstance;
+}
 
 interface WhatsAppSession {
   client: InstanceType<typeof Client>;
@@ -194,6 +204,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
 
             // HYBRID LOGIC: Check for /ia command
             if (logic.logicType === 'hybrid' && message.body.trim().toLowerCase().startsWith('/ia')) {
+              const ai = getAI();
               if (!ai) {
                 reply = "⚠️ Erro: IA não configurada no servidor.";
               } else {
@@ -246,6 +257,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
 
                 // Check plan (Basic or Full)
                 if (user && user.currentPlan !== 'free') {
+                  const ai = getAI();
                   if (!ai) {
                     console.warn("AI not configured for hybrid fallback");
                   } else {
