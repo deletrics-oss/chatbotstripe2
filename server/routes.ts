@@ -23,8 +23,23 @@ const stripe = process.env.STRIPE_SECRET_KEY
 // Initialize Gemini AI (aceita GEMINI_API_KEY ou GOOGLE_API_KEY)
 // Initialize Gemini AI lazily
 let aiInstance: GoogleGenAI | null = null;
+const userAiInstances = new Map<string, GoogleGenAI>();
 
-function getAI() {
+function getAI(userApiKey?: string | null) {
+  // If user provided their own key, use it
+  if (userApiKey) {
+    // Check if we already have an instance for this key
+    if (userAiInstances.has(userApiKey)) {
+      return userAiInstances.get(userApiKey)!;
+    }
+
+    // Create new instance for this user's key
+    const userAi = new GoogleGenAI({ apiKey: userApiKey });
+    userAiInstances.set(userApiKey, userAi);
+    return userAi;
+  }
+
+  // Otherwise, use system key
   if (aiInstance) return aiInstance;
 
   // Try getting key from process.env

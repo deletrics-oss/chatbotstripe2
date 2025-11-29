@@ -45,6 +45,9 @@ export const users = pgTable("users", {
   planExpiresAt: timestamp("plan_expires_at"),
   isAdmin: boolean("is_admin").default(false),
 
+  // User's personal Gemini API key
+  geminiApiKey: text("gemini_api_key"),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
