@@ -140,7 +140,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const devices = await storage.getDevices(userId);
-      res.json(devices);
+
+      // Attach live status and QR code from whatsappManager
+      const devicesWithStatus = devices.map(device => {
+        const status = whatsappManager.getWhatsAppSessionStatus(device.id);
+        const qrCode = whatsappManager.getWhatsAppQRCode(device.id);
+        return {
+          ...device,
+          connectionStatus: status === 'OFFLINE' ? device.connectionStatus : status,
+          qrCode: qrCode || device.qrCode
+        };
+      });
+
+      res.json(devicesWithStatus);
     } catch (error) {
       console.error("Error fetching devices:", error);
       res.status(500).json({ message: "Failed to fetch devices" });

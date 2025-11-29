@@ -186,7 +186,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
       console.log(`[WhatsApp] Processing message from ${userNumber}: "${message.body}"`);
 
       // Get device configuration
-      const device = await storage.getWhatsappDevice(deviceId);
+      const device = await storage.getDevice(deviceId);
       if (!device) {
         console.log(`[WhatsApp] Device ${deviceId} not found in database`);
         return;
@@ -234,10 +234,10 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
               console.log(`[WhatsApp] Sent reply with media to ${userNumber}`);
             } catch (imgError) {
               console.error(`[WhatsApp] Failed to send media, sending text only:`, imgError);
-              await message.reply(result.reply);
+              await client.sendMessage(message.from, result.reply);
             }
           } else {
-            await message.reply(result.reply);
+            await client.sendMessage(message.from, result.reply);
             console.log(`[WhatsApp] Sent text reply to ${userNumber}`);
           }
 
@@ -373,7 +373,7 @@ export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
 export async function restoreWhatsAppSessions(): Promise<void> {
   console.log('[WhatsApp] Restoring sessions...');
 
-  const devices = await storage.getAllWhatsappDevices();
+  const devices = await storage.getAllDevices();
 
   if (devices.length === 0) {
     console.log('[WhatsApp] No devices to restore.');
