@@ -382,9 +382,24 @@ export async function sendWhatsAppMessage(
 
     if (mediaUrl) {
       try {
-        const media = await MessageMedia.fromUrl(mediaUrl);
-        await session.client.sendMessage(chatId, media, { caption: text });
-        console.log(`[WhatsApp] Media message sent to ${chatId} from device ${deviceId}`);
+        let media;
+        if (mediaUrl.startsWith('data:')) {
+          const matches = mediaUrl.match(/^data:(.+);base64,(.+)$/);
+          if (matches) {
+            const mimetype = matches[1];
+            const data = matches[2];
+            media = new MessageMedia(mimetype, data, "media");
+          }
+        } else {
+          media = await MessageMedia.fromUrl(mediaUrl);
+        }
+
+        if (media) {
+          await session.client.sendMessage(chatId, media, { caption: text });
+          console.log(`[WhatsApp] Media message sent to ${chatId} from device ${deviceId}`);
+        } else {
+          throw new Error("Failed to create media object");
+        }
       } catch (mediaError) {
         console.error(`[WhatsApp] Error sending media, falling back to text:`, mediaError);
         await session.client.sendMessage(chatId, text);

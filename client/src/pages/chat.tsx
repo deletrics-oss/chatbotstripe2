@@ -5,13 +5,32 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Conversation, Message } from "@shared/schema";
 import { cn } from "@/lib/utils";
+
+function ContactAvatar({ deviceId, contactId, name, className }: { deviceId: string, contactId: string, name: string, className?: string }) {
+  const { data } = useQuery({
+    queryKey: ['/api/whatsapp/contacts', deviceId, contactId, 'pic'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/whatsapp/contacts/${deviceId}/${contactId}/pic`);
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
+    enabled: !!deviceId && !!contactId
+  });
+
+  return (
+    <Avatar className={className}>
+      <AvatarImage src={data?.url} alt={name} />
+      <AvatarFallback>{name[0]}</AvatarFallback>
+    </Avatar>
+  );
+}
 
 export default function Chat() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -98,9 +117,12 @@ export default function Chat() {
                   )}
                   data-testid={`conversation-item-${conversation.id}`}
                 >
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback>{conversation.contactName[0]}</AvatarFallback>
-                  </Avatar>
+                  <ContactAvatar
+                    deviceId={conversation.deviceId}
+                    contactId={conversation.contactId}
+                    name={conversation.contactName}
+                    className="h-12 w-12"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="font-medium truncate">{conversation.contactName}</p>
@@ -142,9 +164,11 @@ export default function Chat() {
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback>{selectedConversation.contactName[0]}</AvatarFallback>
-                </Avatar>
+                <ContactAvatar
+                  deviceId={selectedConversation.deviceId}
+                  contactId={selectedConversation.contactId}
+                  name={selectedConversation.contactName}
+                />
                 <div>
                   <p className="font-medium" data-testid="text-contact-name">
                     {selectedConversation.contactName}

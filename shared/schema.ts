@@ -231,6 +231,7 @@ export const broadcasts = pgTable("broadcasts", {
   totalContacts: integer("total_contacts").notNull().default(0),
   sentCount: integer("sent_count").notNull().default(0),
   failedCount: integer("failed_count").notNull().default(0),
+  delay: integer("delay").default(20),
   createdAt: timestamp("created_at").defaultNow(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2, Copy } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2, Copy, Search } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,8 @@ export default function BroadcastPage() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [delay, setDelay] = useState(20);
+  const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -145,12 +148,27 @@ export default function BroadcastPage() {
     }
   };
 
+  const filteredContacts = contacts?.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.number.includes(searchTerm)
+  );
+
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
-    if (checked && contacts) {
-      setSelectedContacts(contacts.map(c => c.number));
+    if (checked && filteredContacts) {
+      const newIds = filteredContacts.map(c => c.number);
+      setSelectedContacts(prev => {
+        const unique = new Set([...prev, ...newIds]);
+        return Array.from(unique);
+      });
     } else {
-      setSelectedContacts([]);
+      if (searchTerm && filteredContacts) {
+        // Uncheck only visible
+        const visibleIds = filteredContacts.map(c => c.number);
+        setSelectedContacts(prev => prev.filter(id => !visibleIds.includes(id)));
+      } else {
+        setSelectedContacts([]);
+      }
     }
   };
 
@@ -184,7 +202,8 @@ export default function BroadcastPage() {
       message,
       contacts: selectedContacts,
       mediaUrl: mediaType !== 'none' ? mediaUrl : undefined,
-      mediaType: mediaType !== 'none' ? mediaType : undefined
+      mediaType: mediaType !== 'none' ? mediaType : undefined,
+      delay
     });
   };
 
@@ -362,22 +381,55 @@ export default function BroadcastPage() {
               </div>
 
               {selectedDevice && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Contatos ({contacts?.length || 0})</Label>
-                    <Checkbox
-                      id="select-all"
-                      checked={selectAll}
-                      onCheckedChange={handleSelectAll}
-                      data-testid="checkbox-select-all"
+                <>
+                  {/* Delay Slider */}
+                  <div className="space-y-4 p-4 border rounded-md bg-muted/10">
+                    <div className="flex justify-between items-center">
+                      <Label>Intervalo entre mensagens</Label>
+                      <span className="text-sm font-medium text-muted-foreground">{delay} segundos</span>
+                    </div>
+                    <Slider
+                      value={[delay]}
+                      onValueChange={(vals) => setDelay(vals[0])}
+                      min={10}
+                      max={120}
+                      step={5}
+                      className="py-2"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Aumente o intervalo para evitar bloqueios do WhatsApp. Recomendado: 20s+.
+                    </p>
                   </div>
-                  <Card className="max-h-60 overflow-y-auto">
-                    <CardContent className="pt-4 space-y-2">
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Contatos ({selectedContacts.length} selecionados)</Label>
+                      <div className="relative w-48">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-8 h-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="border rounded-md p-2 h-60 overflow-y-auto space-y-2">
+                      <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
+                        <Checkbox
+                          id="select-all"
+                          checked={selectAll}
+                          onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        />
+                        <Label htmlFor="select-all" className="cursor-pointer font-medium">
+                          Selecionar Todos {searchTerm && "(Filtrados)"}
+                        </Label>
+                      </div>
+
                       {loadingContacts ? (
                         [1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)
-                      ) : contacts && contacts.length > 0 ? (
-                        contacts.map((contact) => (
+                      ) : filteredContacts && filteredContacts.length > 0 ? (
+                        filteredContacts.map((contact) => (
                           <div key={contact.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
                             <Checkbox
                               id={contact.id}
@@ -393,14 +445,17 @@ export default function BroadcastPage() {
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">Nenhum contato</p>
+                        <div className="text-center py-8 text-muted-foreground">
+                          Nenhum contato encontrado
+                        </div>
                       )}
-                    </CardContent>
-                  </Card>
-                  {selectedContacts.length > 0 && (
-                    <p className="text-sm text-muted-foreground">{selectedContacts.length} contato(s) selecionado(s)</p>
-                  )}
-                </div>
+                    </div>
+
+                    {selectedContacts.length > 0 && (
+                      <p className="text-sm text-muted-foreground">{selectedContacts.length} contato(s) selecionado(s)</p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
@@ -470,113 +525,115 @@ export default function BroadcastPage() {
       </Dialog>
 
       {/* Broadcasts List */}
-      {loadingBroadcasts ? (
-        <div className="space-y-4">
-          {[1, 2].map(i => <Card key={i}><Skeleton className="h-40 w-full" /></Card>)}
-        </div>
-      ) : broadcasts && broadcasts.length > 0 ? (
-        <div className="space-y-4">
-          {broadcasts.map((broadcast) => {
-            const statusInfo = getStatusBadge(broadcast.status);
-            const progress = broadcast.totalContacts > 0 ? Math.round((broadcast.sentCount / broadcast.totalContacts) * 100) : 0;
+      {
+        loadingBroadcasts ? (
+          <div className="space-y-4">
+            {[1, 2].map(i => <Card key={i}><Skeleton className="h-40 w-full" /></Card>)}
+          </div>
+        ) : broadcasts && broadcasts.length > 0 ? (
+          <div className="space-y-4">
+            {broadcasts.map((broadcast) => {
+              const statusInfo = getStatusBadge(broadcast.status);
+              const progress = broadcast.totalContacts > 0 ? Math.round((broadcast.sentCount / broadcast.totalContacts) * 100) : 0;
 
-            return (
-              <Card key={broadcast.id} data-testid={`broadcast-card-${broadcast.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <CardTitle className="text-xl">{broadcast.name}</CardTitle>
-                        <Badge variant={statusInfo.variant as any}>
-                          {statusInfo.icon && <statusInfo.icon className="w-3 h-3 mr-1" />}
-                          {statusInfo.label}
-                        </Badge>
+              return (
+                <Card key={broadcast.id} data-testid={`broadcast-card-${broadcast.id}`}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <CardTitle className="text-xl">{broadcast.name}</CardTitle>
+                          <Badge variant={statusInfo.variant as any}>
+                            {statusInfo.icon && <statusInfo.icon className="w-3 h-3 mr-1" />}
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm whitespace-pre-wrap">{broadcast.message}</p>
-                  </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="text-sm whitespace-pre-wrap">{broadcast.message}</p>
+                    </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Progresso</span>
-                      <span className="font-medium">{broadcast.sentCount} / {broadcast.totalContacts}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Progresso</span>
+                        <span className="font-medium">{broadcast.sentCount} / {broadcast.totalContacts}</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
                     </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-primary">{broadcast.totalContacts}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{broadcast.totalContacts}</p>
+                        <p className="text-xs text-muted-foreground">Total</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-status-online">{broadcast.sentCount}</p>
+                        <p className="text-xs text-muted-foreground">Enviadas</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-destructive">{broadcast.failedCount}</p>
+                        <p className="text-xs text-muted-foreground">Falhas</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-status-online">{broadcast.sentCount}</p>
-                      <p className="text-xs text-muted-foreground">Enviadas</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-destructive">{broadcast.failedCount}</p>
-                      <p className="text-xs text-muted-foreground">Falhas</p>
-                    </div>
-                  </div>
 
-                  <div className="flex gap-2">
-                    {broadcast.status === 'pending' && (
-                      <Button size="sm" onClick={() => startBroadcastMutation.mutate(broadcast.id)} disabled={startBroadcastMutation.isPending} data-testid={`button-start-${broadcast.id}`}>
-                        <Play className="w-4 h-4 mr-2" />
-                        Iniciar
+                    <div className="flex gap-2">
+                      {broadcast.status === 'pending' && (
+                        <Button size="sm" onClick={() => startBroadcastMutation.mutate(broadcast.id)} disabled={startBroadcastMutation.isPending} data-testid={`button-start-${broadcast.id}`}>
+                          <Play className="w-4 h-4 mr-2" />
+                          Iniciar
+                        </Button>
+                      )}
+                      {broadcast.status === 'running' && (
+                        <Button variant="outline" size="sm" onClick={() => pauseBroadcastMutation.mutate(broadcast.id)} disabled={pauseBroadcastMutation.isPending} data-testid={`button-pause-${broadcast.id}`}>
+                          <Pause className="w-4 h-4 mr-2" />
+                          Pausar
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          resetForm();
+                          setTimeout(() => {
+                            setBroadcastName(`${broadcast.name} (Reenvio)`);
+                            setMessage(broadcast.message);
+                            setSelectedDevice(broadcast.deviceId);
+                            setMediaType(broadcast.mediaType || 'none');
+                            setMediaUrl(broadcast.mediaUrl || '');
+                            setIsCreateDialogOpen(true);
+                          }, 0);
+                        }}
+                        title="Duplicar e Editar"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Reenviar
                       </Button>
-                    )}
-                    {broadcast.status === 'running' && (
-                      <Button variant="outline" size="sm" onClick={() => pauseBroadcastMutation.mutate(broadcast.id)} disabled={pauseBroadcastMutation.isPending} data-testid={`button-pause-${broadcast.id}`}>
-                        <Pause className="w-4 h-4 mr-2" />
-                        Pausar
+                      <Button variant="destructive" size="sm" onClick={() => deleteBroadcastMutation.mutate(broadcast.id)} disabled={deleteBroadcastMutation.isPending || broadcast.status === 'running'} data-testid={`button-delete-${broadcast.id}`}>
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        resetForm();
-                        setTimeout(() => {
-                          setBroadcastName(`${broadcast.name} (Reenvio)`);
-                          setMessage(broadcast.message);
-                          setSelectedDevice(broadcast.deviceId);
-                          setMediaType(broadcast.mediaType || 'none');
-                          setMediaUrl(broadcast.mediaUrl || '');
-                          setIsCreateDialogOpen(true);
-                        }, 0);
-                      }}
-                      title="Duplicar e Editar"
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Reenviar
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => deleteBroadcastMutation.mutate(broadcast.id)} disabled={deleteBroadcastMutation.isPending || broadcast.status === 'running'} data-testid={`button-delete-${broadcast.id}`}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Send className="w-16 h-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhum disparo criado</h3>
-            <p className="text-sm text-muted-foreground text-center mb-6">Crie seu primeiro disparo para enviar mensagens</p>
-            <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-first-broadcast">
-              <Send className="w-4 h-4 mr-2" />
-              Criar Disparo
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <Send className="w-16 h-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum disparo criado</h3>
+              <p className="text-sm text-muted-foreground text-center mb-6">Crie seu primeiro disparo para enviar mensagens</p>
+              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-first-broadcast">
+                <Send className="w-4 h-4 mr-2" />
+                Criar Disparo
+              </Button>
+            </CardContent>
+          </Card>
+        )
+      }
+    </div >
   );
 }

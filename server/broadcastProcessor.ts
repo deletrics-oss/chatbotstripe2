@@ -13,7 +13,7 @@ export async function processBroadcast(broadcastId: string) {
     return;
   }
 
-  const interval = setInterval(async () => {
+  const runLoop = async () => {
     try {
       const broadcast = await storage.getBroadcast(broadcastId);
 
@@ -62,6 +62,9 @@ export async function processBroadcast(broadcastId: string) {
         await storage.updateBroadcast(broadcastId, {
           failedCount: broadcast.failedCount + 1,
         });
+        // Schedule next immediately since we didn't send
+        const timeout = setTimeout(runLoop, 100);
+        runningBroadcasts.set(broadcastId, timeout);
         return;
       }
 
@@ -108,6 +111,11 @@ export async function processBroadcast(broadcastId: string) {
         });
       }
 
+      // Schedule next execution based on delay
+      const delayMs = (broadcast.delay || 20) * 1000;
+      const timeout = setTimeout(runLoop, delayMs);
+      runningBroadcasts.set(broadcastId, timeout);
+
     } catch (error) {
       console.error(`[Broadcast] Error processing broadcast ${broadcastId}:`, error);
 
@@ -117,23 +125,24 @@ export async function processBroadcast(broadcastId: string) {
       });
       stopBroadcast(broadcastId);
     }
-  }, 20000); // 20 seconds interval
+  };
 
-  runningBroadcasts.set(broadcastId, interval);
+  // Start the loop
+  runLoop();
 }
 
 export function stopBroadcast(broadcastId: string) {
-  const interval = runningBroadcasts.get(broadcastId);
-  if (interval) {
-    clearInterval(interval);
+  const timeout = runningBroadcasts.get(broadcastId);
+  if (timeout) {
+    clearTimeout(timeout);
     runningBroadcasts.delete(broadcastId);
     console.log(`[Broadcast] Stopped processor for ${broadcastId}`);
   }
 }
 
 export function stopAllBroadcasts() {
-  runningBroadcasts.forEach((interval, broadcastId) => {
-    clearInterval(interval);
+  runningBroadcasts.forEach((timeout, broadcastId) => {
+    clearTimeout(timeout);
     console.log(`[Broadcast] Stopped processor for ${broadcastId}`);
   });
   runningBroadcasts.clear();

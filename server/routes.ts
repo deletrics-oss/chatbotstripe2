@@ -1238,7 +1238,7 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
   app.post('/api/broadcasts', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { name, deviceId, message, contacts, mediaUrl, mediaType } = req.body;
+      const { name, deviceId, message, contacts, mediaUrl, mediaType, delay } = req.body;
 
       console.log(`[Broadcast] Creating broadcast. Contacts payload type: ${typeof contacts}, IsArray: ${Array.isArray(contacts)}, Length: ${contacts?.length}`);
       if (Array.isArray(contacts) && contacts.length > 0) {
@@ -1278,6 +1278,7 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
         message,
         mediaUrl,
         mediaType,
+        delay: delay || 20,
         status: 'pending',
         totalContacts: validContacts.length,
         sentCount: 0,
