@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useUser } from "@/hooks/use-user";
+import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Key, ExternalLink } from "lucide-react";
 
 export default function Settings() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [geminiApiKey, setGeminiApiKey] = useState(user?.geminiApiKey || "");
