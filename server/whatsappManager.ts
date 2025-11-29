@@ -448,8 +448,20 @@ export async function getWhatsAppContacts(deviceId: string): Promise<any[]> {
     console.log(`[WhatsApp] Returning ${contacts.length} valid contacts`);
     return contacts;
   } catch (error) {
-    console.error(`[WhatsApp] Error getting contacts:`, error);
+    console.error(`[WhatsApp] Error fetching contacts for device ${deviceId}:`, error);
     return [];
+  }
+}
+
+export async function getContactProfilePic(deviceId: string, contactId: string): Promise<string | null> {
+  const session = sessions.get(deviceId);
+  if (!session || session.status !== 'READY') return null;
+
+  try {
+    const contact = await session.client.getContactById(contactId);
+    return await contact.getProfilePicUrl();
+  } catch (error) {
+    return null;
   }
 }
 

@@ -18,7 +18,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 interface Contact {
   id: string;
   name: string;
-  phone: string;
+  number: string;
   isGroup: boolean;
 }
 
@@ -148,7 +148,7 @@ export default function BroadcastPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
     if (checked && contacts) {
-      setSelectedContacts(contacts.map(c => c.phone));
+      setSelectedContacts(contacts.map(c => c.number));
     } else {
       setSelectedContacts([]);
     }
@@ -378,17 +378,17 @@ export default function BroadcastPage() {
                         [1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)
                       ) : contacts && contacts.length > 0 ? (
                         contacts.map((contact) => (
-                          <div key={contact.phone} className="flex items-center gap-3 p-2 rounded-md">
+                          <div key={contact.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
                             <Checkbox
-                              id={contact.phone}
-                              checked={selectedContacts.includes(contact.phone)}
-                              onCheckedChange={(checked) => handleContactToggle(contact.phone, checked as boolean)}
-                              data-testid={`checkbox-contact-${contact.phone}`}
+                              id={contact.id}
+                              checked={selectedContacts.includes(contact.number)}
+                              onCheckedChange={(checked) => handleContactToggle(contact.number, checked as boolean)}
+                              data-testid={`checkbox-contact-${contact.number}`}
                             />
-                            <label htmlFor={contact.phone} className="flex-1 cursor-pointer">
-                              <p className="text-sm font-medium">{contact.name}</p>
-                              <p className="text-xs text-muted-foreground">{contact.phone}</p>
-                            </label>
+                            <Label htmlFor={contact.id} className="flex-1 cursor-pointer text-sm">
+                              {contact.name}
+                              <span className="block text-xs text-muted-foreground">{contact.number}</span>
+                            </Label>
                             {contact.isGroup && <Badge variant="secondary" className="text-xs">Grupo</Badge>}
                           </div>
                         ))

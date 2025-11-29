@@ -1240,6 +1240,11 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
       const userId = req.user.claims.sub;
       const { name, deviceId, message, contacts, mediaUrl, mediaType } = req.body;
 
+      console.log(`[Broadcast] Creating broadcast. Contacts payload type: ${typeof contacts}, IsArray: ${Array.isArray(contacts)}, Length: ${contacts?.length}`);
+      if (Array.isArray(contacts) && contacts.length > 0) {
+        console.log(`[Broadcast] First contact sample:`, contacts[0]);
+      }
+
       if (!name || !deviceId || !message || !contacts || !Array.isArray(contacts)) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -1251,7 +1256,15 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
       }
 
       // Filter valid contacts
-      const validContacts = contacts.filter((c: any) => c && typeof c === 'string' && c.length >= 8);
+      // Relax validation slightly to accept numbers without @c.us suffix if they are numeric and long enough
+      const validContacts = contacts.filter((c: any) => {
+        if (!c || typeof c !== 'string') return false;
+        // Clean non-numeric chars for length check
+        const clean = c.replace(/\D/g, '');
+        return clean.length >= 8;
+      });
+
+      console.log(`[Broadcast] Valid contacts found: ${validContacts.length}`);
 
       if (validContacts.length === 0) {
         return res.status(400).json({ message: "No valid contacts provided" });
@@ -1377,6 +1390,17 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
     } catch (error) {
       console.error("Error fetching contacts:", error);
       res.status(500).json({ message: "Failed to fetch contacts" });
+    }
+  });
+
+  // Get contact profile pic
+  app.get('/api/whatsapp/contacts/:deviceId/:contactId/pic', isAuthenticated, async (req: any, res) => {
+    try {
+      const { deviceId, contactId } = req.params;
+      const picUrl = await whatsappManager.getContactProfilePic(deviceId, contactId);
+      res.json({ url: picUrl });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get profile pic" });
     }
   });
 
