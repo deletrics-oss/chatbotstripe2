@@ -15,10 +15,37 @@ let aiInstance: GoogleGenAI | null = null;
 function getAI() {
   if (aiInstance) return aiInstance;
 
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  // Try getting key from process.env
+  let geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+  // Fallback: Try reading .env file directly if key is missing
+  if (!geminiKey) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const envPath = path.resolve(process.cwd(), '.env');
+
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const match = envContent.match(/GEMINI_API_KEY=(.*)/);
+        if (match && match[1]) {
+          geminiKey = match[1].trim();
+          // Also set it in process.env for future use
+          process.env.GEMINI_API_KEY = geminiKey;
+          console.log('[Gemini] Loaded API Key from .env file fallback');
+        }
+      }
+    } catch (err) {
+      console.error('[Gemini] Failed to read .env file fallback:', err);
+    }
+  }
+
   if (geminiKey) {
     aiInstance = new GoogleGenAI({ apiKey: geminiKey });
+  } else {
+    console.error('[Gemini] API Key not found in environment or .env file');
   }
+
   return aiInstance;
 }
 
