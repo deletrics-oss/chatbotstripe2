@@ -378,15 +378,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/conversations/:conversationId/messages', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const { conversationId } = req.params;
+      const { content } = req.body;
+
+      // 1. Get Conversation to find device and contact
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      // 2. Verify device ownership
+      const device = await storage.getDevice(conversation.deviceId);
+      if (!device || device.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
       const data = insertMessageSchema.parse({
         ...req.body,
-        conversationId: req.params.conversationId,
+        conversationId,
+        direction: 'outgoing',
+        isFromBot: false,
+        timestamp: new Date(),
       });
 
       const message = await storage.createMessage(data);
 
-      // TODO: Send via WhatsApp API
-      // TODO: Trigger bot response if configured
+      // 3. Send via WhatsApp API
+      try {
+        await whatsappManager.sendWhatsAppMessage(
+          conversation.deviceId,
+          conversation.contactPhone,
+          data.content
+        );
+
+        // Update conversation last message
+        await storage.updateConversation(conversation.id, {
+          lastMessage: data.content,
+          lastMessageAt: new Date(),
+        });
+
+      } catch (sendError) {
+        console.error("Failed to send WhatsApp message:", sendError);
+        // We still return the message as created in DB
+      }
 
       res.json(message);
     } catch (error) {
