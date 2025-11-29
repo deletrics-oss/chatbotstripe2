@@ -156,9 +156,9 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
 
   // Message event
   client.on('message', async (message) => {
-    try {
-      const userNumber = message.from;
+    const userNumber = message.from;
 
+    try {
       // Ignore group messages and status
       if (userNumber.endsWith('@g.us') || message.isStatus) {
         return;
@@ -182,6 +182,8 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
         console.log(`[WhatsApp] [Anti-Loop] Ignoring message from bot ${message.from}`);
         return;
       }
+
+      console.log(`[WhatsApp] Processing message from ${userNumber}: "${message.body}"`);
 
       // Get device configuration
       const device = await storage.getWhatsappDevice(deviceId);
@@ -210,6 +212,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
       if (userMessageLower === '/status') {
         const statusMessage = `Bot Conectado!\n\n- *Dispositivo:* ${device.name}\n- *Status WhatsApp:* OK\n- *Servidor:* OK\n- *Gemini AI:* ${getAI() ? "OK" : "ERRO"}`;
         await client.sendMessage(userNumber, statusMessage);
+        console.log(`[WhatsApp] Sent status message to ${userNumber}`);
         return;
       }
 
@@ -218,9 +221,10 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
         const logic = await storage.getLogic(device.activeLogicId);
 
         if (logic && logic.isActive && logic.logicJson) {
-          console.log(`[WhatsApp] Executing logic ${logic.name} for device ${deviceId}`);
+          console.log(`[WhatsApp] Executing logic "${logic.name}" (${logic.id}) for device ${deviceId}`);
 
           const result = executeLogic(message.body, logic.logicJson as LogicJson);
+          console.log(`[WhatsApp] Logic result: reply="${result.reply.substring(0, 50)}...", shouldPause=${result.shouldPause}`);
 
           // Send reply
           if (result.mediaUrl) {
@@ -234,6 +238,7 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
             }
           } else {
             await message.reply(result.reply);
+            console.log(`[WhatsApp] Sent text reply to ${userNumber}`);
           }
 
           // Handle pause
@@ -245,7 +250,11 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
               console.log(`[WhatsApp] Chat ${userNumber} was PAUSED by logic on device ${deviceId}`);
             }
           }
+        } else {
+          console.log(`[WhatsApp] Logic not found or inactive for device ${deviceId}`);
         }
+      } else {
+        console.log(`[WhatsApp] No active logic configured for device ${deviceId}`);
       }
     } catch (error) {
       console.error(`[WhatsApp] Error handling message for device ${deviceId}:`, error);
