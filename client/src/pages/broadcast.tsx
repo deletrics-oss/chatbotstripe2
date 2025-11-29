@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2 } from "lucide-react";
+import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2, Copy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -531,6 +531,22 @@ export default function BroadcastPage() {
                         Pausar
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setBroadcastName(`${broadcast.name} (Reenvio)`);
+                        setMessage(broadcast.message);
+                        setSelectedDevice(broadcast.deviceId);
+                        setMediaType(broadcast.mediaType || 'none');
+                        setMediaUrl(broadcast.mediaUrl || '');
+                        setIsCreateDialogOpen(true);
+                      }}
+                      title="Duplicar e Editar"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Reenviar
+                    </Button>
                     <Button variant="destructive" size="sm" onClick={() => deleteBroadcastMutation.mutate(broadcast.id)} disabled={deleteBroadcastMutation.isPending || broadcast.status === 'running'} data-testid={`button-delete-${broadcast.id}`}>
                       <Trash2 className="w-4 h-4" />
                     </Button>

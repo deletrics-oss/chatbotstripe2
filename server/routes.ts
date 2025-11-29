@@ -1250,20 +1250,29 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
         return res.status(403).json({ message: "Device not found or unauthorized" });
       }
 
+      // Filter valid contacts
+      const validContacts = contacts.filter((c: any) => c && typeof c === 'string' && c.length >= 8);
+
+      if (validContacts.length === 0) {
+        return res.status(400).json({ message: "No valid contacts provided" });
+      }
+
       // Create broadcast
       const broadcast = await storage.createBroadcast({
         userId,
         deviceId,
         name,
         message,
+        mediaUrl,
+        mediaType,
         status: 'pending',
-        totalContacts: contacts.length,
+        totalContacts: validContacts.length,
         sentCount: 0,
         failedCount: 0,
       });
 
       // Create broadcast contacts
-      for (const phone of contacts) {
+      for (const phone of validContacts) {
         await storage.createBroadcastContact({
           broadcastId: broadcast.id,
           contactName: phone,
