@@ -177,7 +177,7 @@ export default function Billing() {
                     className="w-full"
                     variant={isCurrentPlan ? "outline" : plan.recommended ? "default" : "outline"}
                     onClick={() => handleSubscribe(plan.id)}
-                    disabled={isCurrentPlan || (plan.id === 'full' && !plan.badge)} // Keep Full disabled if no badge/ID yet, or enable if we had it. For now, user only gave Basic.
+                    disabled={isCurrentPlan}
                   >
                     {isCurrentPlan ? "Plano Atual" : "Assinar Agora"}
                   </Button>

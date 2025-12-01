@@ -304,6 +304,10 @@ export default function BroadcastPage() {
                 </Select>
               </div>
 
+              import {VoiceEditor} from "@/components/voice-editor";
+
+              // ... (inside the component)
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="message">Mensagem</Label>
@@ -312,13 +316,11 @@ export default function BroadcastPage() {
                     IA
                   </Button>
                 </div>
-                <Textarea
-                  id="message"
-                  placeholder="Digite a mensagem..."
+                <VoiceEditor
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={3}
-                  data-testid="textarea-message"
+                  onChange={setMessage}
+                  placeholder="Digite a mensagem ou use o microfone para editar (Ex: 'Mude o preço para R$ 10')..."
+                  className="min-h-[120px]"
                 />
               </div>
 

@@ -118,6 +118,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/admin/users/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const adminUser = await storage.getUser(userId);
+
+      if (!adminUser || !adminUser.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { currentPlan, isAdmin, planExpiresAt } = req.body;
+
+      const targetUser = await storage.getUser(id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const updateData: any = {};
+      if (currentPlan !== undefined) updateData.currentPlan = currentPlan;
+      if (isAdmin !== undefined) updateData.isAdmin = isAdmin;
+      if (planExpiresAt !== undefined) updateData.planExpiresAt = planExpiresAt ? new Date(planExpiresAt) : null;
+
+      const updatedUser = await storage.updateUser(id, updateData);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.get('/api/admin/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const users = await storage.getAllUsers();
+      const devices = await storage.getAllDevices();
+
+      // Calculate stats
+      const totalUsers = users.length;
+      const activeSubscriptions = users.filter(u => u.currentPlan !== 'free').length;
+
+      // We need a way to count total messages across the system, but storage.getStats is per user.
+      // For now, we'll approximate or add a method to storage if needed. 
+      // Let's just count devices for now as a proxy for activity.
+      const totalDevices = devices.length;
+      const connectedDevices = devices.filter(d => d.connectionStatus === 'connected').length;
+
+      res.json({
+        totalUsers,
+        activeSubscriptions,
+        totalDevices,
+        connectedDevices
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get('/api/admin/devices', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const devices = await storage.getAllDevices();
+
+      // Enrich with user info
+      const devicesWithUser = await Promise.all(devices.map(async (device) => {
+        const deviceOwner = await storage.getUser(device.userId);
+        const rawStatus = whatsappManager.getWhatsAppSessionStatus(device.id);
+
+        let status = device.connectionStatus;
+        if (rawStatus === 'READY') status = 'connected';
+        else if (rawStatus === 'QR_PENDING') status = 'qr_ready';
+        else if (rawStatus === 'INITIALIZING') status = 'connecting';
+        else if (rawStatus === 'DISCONNECTED') status = 'disconnected';
+
+        return {
+          ...device,
+          connectionStatus: status,
+          ownerName: deviceOwner?.username || 'Unknown',
+          ownerEmail: deviceOwner?.email || 'No email'
+        };
+      }));
+
+      res.json(devicesWithUser);
+    } catch (error) {
+      console.error("Error fetching admin devices:", error);
+      res.status(500).json({ message: "Failed to fetch admin devices" });
+    }
+  });
+
   // ============ AUTH ROUTES ============
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
