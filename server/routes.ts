@@ -101,6 +101,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   // ============ AUTH ROUTES ============
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -732,6 +749,54 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
     } catch (error) {
       console.error("Error editing logic with AI:", error);
       res.status(500).json({ message: "Failed to edit logic" });
+    }
+  });
+
+  // Edit generic text with AI (Voice Editor)
+  app.post('/api/ai/edit-text', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      const ai = getAI(user.geminiApiKey);
+      if (!ai) {
+        return res.status(503).json({ message: "Gemini AI not configured" });
+      }
+
+      const { text, instruction } = req.body;
+
+      if (!text || !instruction) {
+        return res.status(400).json({ message: "Text and instruction are required" });
+      }
+
+      const systemPrompt = `Você é um editor de texto assistente.
+Sua tarefa é modificar o texto fornecido seguindo ESTRITAMENTE a instrução do usuário.
+Mantenha a formatação original (quebras de linha, estilo) o máximo possível.
+NÃO adicione comentários, introduções ou explicações. Retorne APENAS o texto final modificado.
+
+Texto Original:
+${text}
+
+Instrução:
+${instruction}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        config: {
+          systemInstruction: "Você é um editor de texto preciso. Retorne apenas o texto modificado.",
+        },
+        contents: systemPrompt,
+      });
+
+      const modifiedText = response.text || text;
+      res.json({ modifiedText });
+    } catch (error) {
+      console.error("Error editing text with AI:", error);
+      res.status(500).json({ message: "Failed to edit text" });
     }
   });
 

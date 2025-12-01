@@ -23,6 +23,8 @@ import Settings from "@/pages/settings";
 import Broadcast from "@/pages/broadcast";
 import WebAssistants from "@/pages/web-assistants";
 import PublicChat from "@/pages/public-chat";
+import AdminDashboard from "@/pages/admin-dashboard";
+import VoiceEditorDemo from "@/pages/voice-editor-demo";
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -78,6 +80,8 @@ function AppContent() {
           </header>
           <main className="flex-1 overflow-auto">
             <Switch>
+              <Route path="/voice-demo" component={VoiceEditorDemo} />
+              <Route path="/admin" component={AdminDashboard} />
               <Route path="/" component={Dashboard} />
               <Route path="/devices" component={Devices} />
               <Route path="/chat" component={Chat} />
