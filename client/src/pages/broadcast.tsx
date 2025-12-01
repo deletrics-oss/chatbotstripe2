@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { VoiceEditor } from "@/components/voice-editor";
 
 interface Contact {
   id: string;
@@ -303,10 +304,6 @@ export default function BroadcastPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              import {VoiceEditor} from "@/components/voice-editor";
-
-              // ... (inside the component)
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
