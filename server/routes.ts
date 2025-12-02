@@ -101,6 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+<<<<<<< HEAD
   // ============ SUPER ADMIN ROUTES ============
   // Middleware to check if user is admin
   const isAdmin = async (req: any, res: any, next: any) => {
@@ -151,10 +152,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(usersWithDevices);
     } catch (error) {
       console.error("Error fetching all users:", error);
+=======
+  app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+>>>>>>> 074db1b8a560a702adfdab54ab7776650bbe6f47
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
+<<<<<<< HEAD
   // Get global statistics (admin only)
   app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
@@ -236,6 +253,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
+=======
+  app.patch('/api/admin/users/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const adminUser = await storage.getUser(userId);
+
+      if (!adminUser || !adminUser.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { currentPlan, isAdmin, planExpiresAt } = req.body;
+
+      const targetUser = await storage.getUser(id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const updateData: any = {};
+      if (currentPlan !== undefined) updateData.currentPlan = currentPlan;
+      if (isAdmin !== undefined) updateData.isAdmin = isAdmin;
+      if (planExpiresAt !== undefined) updateData.planExpiresAt = planExpiresAt ? new Date(planExpiresAt) : null;
+
+      const updatedUser = await storage.updateUser(id, updateData);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.get('/api/admin/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const users = await storage.getAllUsers();
+      const devices = await storage.getAllDevices();
+
+      // Calculate stats
+      const totalUsers = users.length;
+      const activeSubscriptions = users.filter(u => u.currentPlan !== 'free').length;
+
+      // We need a way to count total messages across the system, but storage.getStats is per user.
+      // For now, we'll approximate or add a method to storage if needed. 
+      // Let's just count devices for now as a proxy for activity.
+      const totalDevices = devices.length;
+      const connectedDevices = devices.filter(d => d.connectionStatus === 'connected').length;
+
+      res.json({
+        totalUsers,
+        activeSubscriptions,
+        totalDevices,
+        connectedDevices
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get('/api/admin/devices', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const devices = await storage.getAllDevices();
+
+      // Enrich with user info
+      const devicesWithUser = await Promise.all(devices.map(async (device) => {
+        const deviceOwner = await storage.getUser(device.userId);
+        const rawStatus = whatsappManager.getWhatsAppSessionStatus(device.id);
+
+        let status = device.connectionStatus;
+        if (rawStatus === 'READY') status = 'connected';
+        else if (rawStatus === 'QR_PENDING') status = 'qr_ready';
+        else if (rawStatus === 'INITIALIZING') status = 'connecting';
+        else if (rawStatus === 'DISCONNECTED') status = 'disconnected';
+
+        return {
+          ...device,
+          connectionStatus: status,
+          ownerName: deviceOwner?.username || 'Unknown',
+          ownerEmail: deviceOwner?.email || 'No email'
+        };
+      }));
+
+      res.json(devicesWithUser);
+    } catch (error) {
+      console.error("Error fetching admin devices:", error);
+      res.status(500).json({ message: "Failed to fetch admin devices" });
+>>>>>>> 074db1b8a560a702adfdab54ab7776650bbe6f47
     }
   });
 
@@ -905,6 +1022,54 @@ Responda APENAS com o JSON modificado válido, sem explicações adicionais.`;
     } catch (error) {
       console.error("Error editing logic with AI:", error);
       res.status(500).json({ message: "Failed to edit logic" });
+    }
+  });
+
+  // Edit generic text with AI (Voice Editor)
+  app.post('/api/ai/edit-text', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      const ai = getAI(user.geminiApiKey);
+      if (!ai) {
+        return res.status(503).json({ message: "Gemini AI not configured" });
+      }
+
+      const { text, instruction } = req.body;
+
+      if (!text || !instruction) {
+        return res.status(400).json({ message: "Text and instruction are required" });
+      }
+
+      const systemPrompt = `Você é um editor de texto assistente.
+Sua tarefa é modificar o texto fornecido seguindo ESTRITAMENTE a instrução do usuário.
+Mantenha a formatação original (quebras de linha, estilo) o máximo possível.
+NÃO adicione comentários, introduções ou explicações. Retorne APENAS o texto final modificado.
+
+Texto Original:
+${text}
+
+Instrução:
+${instruction}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        config: {
+          systemInstruction: "Você é um editor de texto preciso. Retorne apenas o texto modificado.",
+        },
+        contents: systemPrompt,
+      });
+
+      const modifiedText = response.text || text;
+      res.json({ modifiedText });
+    } catch (error) {
+      console.error("Error editing text with AI:", error);
+      res.status(500).json({ message: "Failed to edit text" });
     }
   });
 

@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { VoiceEditor } from "@/components/voice-editor";
 
 interface Contact {
   id: string;
@@ -384,13 +385,11 @@ export default function BroadcastPage() {
                     IA
                   </Button>
                 </div>
-                <Textarea
-                  id="message"
-                  placeholder="Digite a mensagem..."
+                <VoiceEditor
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={3}
-                  data-testid="textarea-message"
+                  onChange={setMessage}
+                  placeholder="Digite a mensagem ou use o microfone para editar (Ex: 'Mude o preço para R$ 10')..."
+                  className="min-h-[120px]"
                 />
               </div>
 
