@@ -23,6 +23,7 @@ import Settings from "@/pages/settings";
 import Broadcast from "@/pages/broadcast";
 import WebAssistants from "@/pages/web-assistants";
 import PublicChat from "@/pages/public-chat";
+import SuperAdmin from "@/pages/super-admin";
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -93,6 +94,7 @@ function AppContent() {
               <Route path="/broadcast" component={Broadcast} />
               <Route path="/billing" component={Billing} />
               <Route path="/settings" component={Settings} />
+              <Route path="/super-admin" component={SuperAdmin} />
               <Route component={NotFound} />
             </Switch>
           </main>

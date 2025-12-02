@@ -101,6 +101,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ SUPER ADMIN ROUTES ============
+  // Middleware to check if user is admin
+  const isAdmin = async (req: any, res: any, next: any) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+      
+      next();
+    } catch (error) {
+      res.status(500).json({ message: "Authorization check failed" });
+    }
+  };
+
+  // Get all users with their device counts (admin only)
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      
+      // Enhance with device counts
+      const usersWithDevices = await Promise.all(
+        allUsers.map(async (user) => {
+          const devices = await storage.getDevices(user.id);
+          const connectedDevices = devices.filter(d => {
+            const status = whatsappManager.getWhatsAppSessionStatus(d.id);
+            return status === 'READY';
+          }).length;
+          
+          return {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            currentPlan: user.currentPlan,
+            planExpiresAt: user.planExpiresAt,
+            isAdmin: user.isAdmin,
+            stripeCustomerId: user.stripeCustomerId,
+            stripeSubscriptionId: user.stripeSubscriptionId,
+            createdAt: user.createdAt,
+            deviceCount: devices.length,
+            connectedDevices,
+          };
+        })
+      );
+      
+      res.json(usersWithDevices);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Get global statistics (admin only)
+  app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const allDevices = await storage.getAllDevices();
+      
+      const connectedDevices = allDevices.filter(d => {
+        const status = whatsappManager.getWhatsAppSessionStatus(d.id);
+        return status === 'READY';
+      }).length;
+      
+      const freeUsers = allUsers.filter(u => u.currentPlan === 'free').length;
+      const basicUsers = allUsers.filter(u => u.currentPlan === 'basic').length;
+      const fullUsers = allUsers.filter(u => u.currentPlan === 'full').length;
+      
+      const activeSubscriptions = allUsers.filter(u => {
+        if (u.currentPlan === 'free') return false;
+        if (!u.planExpiresAt) return true;
+        return new Date(u.planExpiresAt) > new Date();
+      }).length;
+      
+      // Get message count from last 24h
+      const messagesLast24h = await storage.getMessagesCountLast24h();
+      
+      res.json({
+        totalUsers: allUsers.length,
+        activeSubscriptions,
+        freeUsers,
+        basicUsers,
+        fullUsers,
+        totalRevenue: 0, // Could be calculated from Stripe if needed
+        totalDevices: allDevices.length,
+        connectedDevices,
+        messagesLast24h,
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Update user plan (admin only)
+  app.post('/api/admin/users/:userId/update-plan', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { plan } = req.body;
+      
+      if (!['free', 'basic', 'full'].includes(plan)) {
+        return res.status(400).json({ message: "Invalid plan" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, { 
+        currentPlan: plan,
+        planExpiresAt: plan === 'free' ? null : undefined,
+      });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user plan:", error);
+      res.status(500).json({ message: "Failed to update plan" });
+    }
+  });
+
+  // Delete user (admin only)
+  app.delete('/api/admin/users/:userId', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Check if trying to delete another admin
+      const targetUser = await storage.getUser(userId);
+      if (targetUser?.isAdmin) {
+        return res.status(403).json({ message: "Cannot delete admin users" });
+      }
+      
+      // Delete user (cascade will handle related data)
+      await storage.deleteUser(userId);
+      
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // ============ AUTH ROUTES ============
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {

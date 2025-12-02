@@ -764,6 +764,41 @@ export class MemStorage implements IStorage {
     return userData;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    this.users.delete(id);
+    // Cascade delete - remove user's devices, logics, etc.
+    Array.from(this.devices.values())
+      .filter(d => d.userId === id)
+      .forEach(d => this.devices.delete(d.id));
+    
+    Array.from(this.logics.values())
+      .filter(l => l.userId === id)
+      .forEach(l => this.logics.delete(l.id));
+    
+    Array.from(this.knowledgeBases.values())
+      .filter(k => k.userId === id)
+      .forEach(k => this.knowledgeBases.delete(k.id));
+    
+    Array.from(this.webAssistants.values())
+      .filter(w => w.userId === id)
+      .forEach(w => this.webAssistants.delete(w.id));
+    
+    this.saveData();
+  }
+
+  async getMessagesCountLast24h(): Promise<number> {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    return Array.from(this.messages.values())
+      .filter(m => m.timestamp && m.timestamp >= yesterday)
+      .length;
+  }
+
   // WhatsApp Devices
   async getDevices(userId: string): Promise<WhatsappDevice[]> {
     return Array.from(this.devices.values())

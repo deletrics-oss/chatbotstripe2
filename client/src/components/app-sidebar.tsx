@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe } from "lucide-react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Crown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -68,6 +68,14 @@ const menuItems = [
   },
 ];
 
+const adminMenuItems = [
+  {
+    title: "Super Admin",
+    url: "/super-admin",
+    icon: Crown,
+  },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -100,6 +108,21 @@ export function AppSidebar() {
                       <Link href={item.url}>
                         <item.icon className="w-5 h-5" />
                         <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+
+              {/* Admin-only menu items */}
+              {user?.isAdmin && adminMenuItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive} data-testid={`nav-${item.url.slice(1)}`}>
+                      <Link href={item.url}>
+                        <item.icon className="w-5 h-5 text-yellow-500" />
+                        <span className="font-semibold">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

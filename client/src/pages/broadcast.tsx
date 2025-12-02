@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Slider } from "@/components/ui/slider";
-import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2, Copy, Search } from "lucide-react";
+import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2, Copy, Search, Mic, Square } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -31,6 +32,9 @@ export default function BroadcastPage() {
   const [message, setMessage] = useState("");
   const [aiPrompt, setAIPrompt] = useState("");
   const [aiContext, setAiContext] = useState("");
+  const [aiGenerationMode, setAiGenerationMode] = useState<"replace" | "append">("replace");
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [mediaType, setMediaType] = useState<"none" | "image" | "video">("none");
   const [mediaUrl, setMediaUrl] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
@@ -80,9 +84,16 @@ export default function BroadcastPage() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      setMessage(data.message);
+      if (aiGenerationMode === "append") {
+        setMessage(prev => prev ? `${prev}\n\n${data.message}` : data.message);
+      } else {
+        setMessage(data.message);
+      }
       setIsAIDialogOpen(false);
-      toast({ title: "Mensagem gerada!", description: "A IA criou sua mensagem com sucesso" });
+      toast({
+        title: "Mensagem gerada!",
+        description: aiGenerationMode === "append" ? "Conteúdo adicionado à mensagem" : "Mensagem substituída com sucesso"
+      });
     },
   });
 
@@ -181,6 +192,67 @@ export default function BroadcastPage() {
     } else {
       setSelectedContacts(prev => prev.filter(p => p !== phone));
       setSelectAll(false);
+    }
+  };
+
+  // Voice recording handlers
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+
+        // Use Web Speech API for speech-to-text if available
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+          const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'pt-BR';
+          recognition.continuous = false;
+
+          recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setAIPrompt(prev => prev ? `${prev} ${transcript}` : transcript);
+          };
+
+          recognition.onerror = () => {
+            toast({
+              title: "Erro no reconhecimento de voz",
+              description: "Não foi possível converter o áudio em texto",
+              variant: "destructive",
+            });
+          };
+        } else {
+          toast({
+            title: "Recurso indisponível",
+            description: "Seu navegador não suporta reconhecimento de voz",
+            variant: "destructive",
+          });
+        }
+
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setMediaRecorder(recorder);
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      toast({
+        title: "Erro ao acessar microfone",
+        description: "Verifique as permissões do navegador",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      setMediaRecorder(null);
     }
   };
 
@@ -498,7 +570,27 @@ export default function BroadcastPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Instrução</Label>
+              <div className="flex items-center justify-between">
+                <Label>Instrução</Label>
+                <Button
+                  variant={isRecording ? "destructive" : "outline"}
+                  size="sm"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  type="button"
+                >
+                  {isRecording ? (
+                    <>
+                      <Square className="w-3 h-3 mr-1 animate-pulse" />
+                      Parar
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-3 h-3 mr-1" />
+                      Gravar
+                    </>
+                  )}
+                </Button>
+              </div>
               <Textarea
                 placeholder="Ex: Crie uma mensagem de oferta para estes produtos"
                 value={aiPrompt}
@@ -506,6 +598,35 @@ export default function BroadcastPage() {
                 rows={3}
                 data-testid="textarea-ai-prompt"
               />
+              {isRecording && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  Gravando áudio...
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ação ao gerar</Label>
+              <RadioGroup value={aiGenerationMode} onValueChange={(v: any) => setAiGenerationMode(v)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="replace" id="mode-replace" />
+                  <Label htmlFor="mode-replace" className="font-normal cursor-pointer">
+                    Substituir mensagem atual
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="append" id="mode-append" />
+                  <Label htmlFor="mode-append" className="font-normal cursor-pointer">
+                    Adicionar ao final da mensagem
+                  </Label>
+                </div>
+              </RadioGroup>
+              {message && aiGenerationMode === "append" && (
+                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                  💡 O conteúdo gerado será adicionado após o texto atual
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

@@ -50,6 +50,8 @@ interface WhatsAppSession {
 
 const sessions = new Map<string, WhatsAppSession>();
 const pausedChats = new Map<string, string[]>();
+const reconnectionAttempts = new Map<string, number>();
+const MAX_RECONNECTION_ATTEMPTS = 5;
 
 async function saveMessageToDb(
   deviceId: string,
@@ -168,6 +170,8 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
     console.log(`[WhatsApp] Client ready for device: ${deviceId}`);
     session.status = 'READY';
     session.qrCode = null;
+    // Reset reconnection attempts on successful connection
+    reconnectionAttempts.delete(deviceId);
     await storage.updateDevice(deviceId, { connectionStatus: 'connected', qrCode: null, lastConnectedAt: new Date() });
   });
 
@@ -176,21 +180,40 @@ export async function createWhatsAppSession(deviceId: string): Promise<void> {
     console.log(`[WhatsApp] Client authenticated for device: ${deviceId}`);
   });
 
-  // Disconnected event - IMPORTANTE para reconexão
+  // Disconnected event - Enhanced auto-reconnection with exponential backoff
   client.on('disconnected', async (reason) => {
     if (session.status !== 'DESTROYING') {
       console.warn(`[WhatsApp] Client disconnected for device: ${deviceId}, reason:`, reason);
       session.status = 'DISCONNECTED';
       await storage.updateDevice(deviceId, { connectionStatus: 'disconnected' });
 
-      // Auto-reconnect after 5 seconds
-      setTimeout(async () => {
-        if (sessions.has(deviceId) && sessions.get(deviceId)!.status === 'DISCONNECTED') {
-          console.log(`[WhatsApp] Auto-reconnecting device: ${deviceId}`);
-          await destroyWhatsAppSession(deviceId);
-          await createWhatsAppSession(deviceId);
-        }
-      }, 5000);
+      // Get current reconnection attempt count
+      const attempts = reconnectionAttempts.get(deviceId) || 0;
+
+      if (attempts < MAX_RECONNECTION_ATTEMPTS) {
+        // Exponential backoff: 5s, 10s, 20s, 40s, 80s
+        const delay = Math.min(5000 * Math.pow(2, attempts), 80000);
+        reconnectionAttempts.set(deviceId, attempts + 1);
+
+        console.log(`[WhatsApp] Scheduling auto-reconnect for device ${deviceId} (attempt ${attempts + 1}/${MAX_RECONNECTION_ATTEMPTS}) in ${delay / 1000}s`);
+
+        setTimeout(async () => {
+          if (sessions.has(deviceId) && sessions.get(deviceId)!.status === 'DISCONNECTED') {
+            console.log(`[WhatsApp] Auto-reconnecting device: ${deviceId} (attempt ${attempts + 1}/${MAX_RECONNECTION_ATTEMPTS})`);
+            try {
+              await destroyWhatsAppSession(deviceId);
+              await createWhatsAppSession(deviceId);
+              // Reset attempts on successful reconnection
+              reconnectionAttempts.delete(deviceId);
+            } catch (error) {
+              console.error(`[WhatsApp] Reconnection attempt ${attempts + 1} failed for device ${deviceId}:`, error);
+            }
+          }
+        }, delay);
+      } else {
+        console.error(`[WhatsApp] Max reconnection attempts (${MAX_RECONNECTION_ATTEMPTS}) reached for device ${deviceId}. Manual reconnection required.`);
+        reconnectionAttempts.delete(deviceId);
+      }
     }
   });
 
