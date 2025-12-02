@@ -2338,18 +2338,44 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
 
       if (!prompt) return res.status(400).json({ message: "Prompt is required" });
 
-      const systemPrompt = `Você é um assistente de marketing especializado em criar mensagens para disparos de WhatsApp.
-      Crie uma mensagem curta, direta e persuasiva baseada no pedido do usuário.
-      Use emojis para tornar a mensagem amigável.
-      Se o usuário fornecer um contexto (ex: lista de produtos), use-o.
-      Responda APENAS com o texto da mensagem.`;
+      const systemPrompt = `Você é um assistente inteligente especializado em processar e modificar mensagens de WhatsApp.
+
+SUAS CAPACIDADES:
+1. **Processar Cálculos**: Quando o usuário pedir "aumentar 30%", "adicionar 50%", "diminuir 20%", você deve:
+   - Identificar TODOS os preços no formato R$ XX,XX ou R$ XX
+   - Calcular o novo valor com a porcentagem solicitada
+   - Substituir os valores antigos pelos novos NA MENSAGEM ORIGINAL
+   - Manter EXATAMENTE o mesmo formato e estrutura da mensagem
+   - Retornar a mensagem COMPLETA atualizada com os novos valores
+
+2. **Adicionar Itens**: Quando pedir "adicionar produto X com preço Y":
+   - Continue a lista no mesmo formato existente
+   - Mantenha a numeração ou bullets corretos
+
+3. **Remover Itens**: Quando pedir "remover X":
+   - Remova apenas o item solicitado
+   - Ajuste numeração se necessário
+
+4. **Criar Nova Mensagem**: Se não houver conteúdo atual ou o usuário pedir algo novo:
+   - Crie uma mensagem marketing persuasiva
+   - Use emojis apropriados
+
+REGRAS CRÍTICAS:
+- SEMPRE retorne o conteúdo COMPLETO atualizado, NUNCA apenas uma parte
+- NUNCA adicione explicações, apenas o resultado final
+- Mantenha formatação, emojis e estrutura do original
+- Para cálculos, seja PRECISO matematicamente
+- Mantenha o formato de preços R$ XX,XX
+- Se a mensagem tiver 3 produtos, retorne os 3 produtos atualizados
+
+Responda APENAS com o texto final da mensagem, sem explicações.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash-exp",
         config: {
           systemInstruction: systemPrompt,
         },
-        contents: `Contexto: ${context || 'Nenhum'}\n\nPedido: ${prompt}`,
+        contents: prompt, // O prompt já contém o contexto formatado pelo frontend
       });
 
       const text = response.text || "";
