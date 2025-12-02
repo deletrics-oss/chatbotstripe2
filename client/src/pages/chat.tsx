@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Send, Search, MoreVertical } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -37,6 +37,7 @@ export default function Chat() {
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: conversations, isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ['/api/conversations'],
@@ -46,6 +47,13 @@ export default function Chat() {
     queryKey: ['/api/conversations', selectedConversationId, 'messages'],
     enabled: !!selectedConversationId,
   });
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -227,6 +235,8 @@ export default function Chat() {
                       </div>
                     </div>
                   ))}
+                  {/* Auto-scroll target */}
+                  <div ref={messagesEndRef} />
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full text-center">
