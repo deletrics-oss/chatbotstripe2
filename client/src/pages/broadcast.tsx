@@ -78,9 +78,38 @@ export default function BroadcastPage() {
 
   const generateAIMutation = useMutation({
     mutationFn: async (prompt: string) => {
+      // Smart context: if there's already content, include it automatically
+      let finalPrompt = prompt;
+
+      if (message.trim() && !aiContext) {
+        // Include current message as context for AI to understand and work with
+        finalPrompt = `CONTEÚDO ATUAL DA MENSAGEM:
+"""
+${message}
+"""
+
+INSTRUÇÃO DO USUÁRIO:
+${prompt}
+
+DIRETRIZES PARA A IA:
+- Se o usuário pedir para adicionar/incluir/inserir: continue a lista mantendo exatamente o mesmo formato
+- Se pedir para remover/deletar/tirar: remova os itens mencionados
+- Se pedir para alterar/mudar/trocar: faça as mudanças solicitadas mantendo o resto
+- Se pedir para criar algo novo: use o conteúdo atual como referência de estilo, tom e formatação
+- Se pedir cálculos (aumentar X%, diminuir Y%, multiplicar): faça os cálculos nos valores existentes
+- Sempre mantenha o estilo, formatação, emojis e estrutura do conteúdo atual
+- Se tiver lista numerada (1. 2. 3.), continue a numeração corretamente
+- Se tiver bullets (- ou •), use o mesmo caractere
+- Se tiver preços, mantenha o formato R$ XX,XX
+- Retorne SEMPRE o conteúdo COMPLETO atualizado, não apenas as mudanças
+- Seja útil, criativo e adaptável ao que o usuário precisa
+
+Retorne apenas o resultado final sem explicações adicionais.`;
+      }
+
       const res = await apiRequest("POST", "/api/ai/generate-broadcast", {
-        prompt,
-        context: aiContext
+        prompt: finalPrompt,
+        context: aiContext || ""
       });
       return await res.json();
     },
@@ -92,8 +121,8 @@ export default function BroadcastPage() {
       }
       setIsAIDialogOpen(false);
       toast({
-        title: "Mensagem gerada!",
-        description: aiGenerationMode === "append" ? "Conteúdo adicionado à mensagem" : "Mensagem substituída com sucesso"
+        title: "✨ Mensagem gerada!",
+        description: aiGenerationMode === "append" ? "Conteúdo adicionado à mensagem" : "Mensagem atualizada com sucesso"
       });
     },
   });
