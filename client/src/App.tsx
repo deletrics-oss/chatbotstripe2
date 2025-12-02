@@ -23,20 +23,14 @@ import Settings from "@/pages/settings";
 import Broadcast from "@/pages/broadcast";
 import WebAssistants from "@/pages/web-assistants";
 import PublicChat from "@/pages/public-chat";
-<<<<<<< HEAD
 import SuperAdmin from "@/pages/super-admin";
-=======
-import AdminDashboard from "@/pages/admin-dashboard";
-import VoiceEditorDemo from "@/pages/voice-editor-demo";
->>>>>>> 074db1b8a560a702adfdab54ab7776650bbe6f47
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Custom sidebar width for chatbot application
   const style = {
-    "--sidebar-width": "16rem",       // 256px for better navigation
-    "--sidebar-width-icon": "4rem",   // default icon width
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "4rem",
   };
 
   if (isLoading) {
@@ -50,7 +44,6 @@ function AppContent() {
     );
   }
 
-  // Public routes (not authenticated)
   if (!isAuthenticated) {
     return (
       <Switch>
@@ -63,7 +56,6 @@ function AppContent() {
     );
   }
 
-  // Check for public chat route even if authenticated (to allow testing)
   if (window.location.pathname.startsWith('/chat/')) {
     return (
       <Switch>
@@ -72,7 +64,6 @@ function AppContent() {
       </Switch>
     );
   }
-
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -84,8 +75,6 @@ function AppContent() {
           </header>
           <main className="flex-1 overflow-auto">
             <Switch>
-              <Route path="/voice-demo" component={VoiceEditorDemo} />
-              <Route path="/admin" component={AdminDashboard} />
               <Route path="/" component={Dashboard} />
               <Route path="/devices" component={Devices} />
               <Route path="/chat" component={Chat} />
@@ -95,7 +84,6 @@ function AppContent() {
               <Route path="/knowledge" component={Knowledge} />
               <Route path="/behaviors/new" component={BehaviorEditor} />
               <Route path="/behaviors/:id" component={BehaviorEditor} />
-              <Route path="/behaviors" component={Behaviors} />
               <Route path="/behaviors" component={Behaviors} />
               <Route path="/web-assistants" component={WebAssistants} />
               <Route path="/broadcast" component={Broadcast} />
