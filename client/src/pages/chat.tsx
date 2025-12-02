@@ -119,7 +119,7 @@ export default function Chat() {
                 >
                   <ContactAvatar
                     deviceId={conversation.deviceId}
-                    contactId={conversation.contactId}
+                    contactId={conversation.contactPhone}
                     name={conversation.contactName}
                     className="h-12 w-12"
                   />
@@ -166,7 +166,7 @@ export default function Chat() {
               <div className="flex items-center gap-3">
                 <ContactAvatar
                   deviceId={selectedConversation.deviceId}
-                  contactId={selectedConversation.contactId}
+                  contactId={selectedConversation.contactPhone}
                   name={selectedConversation.contactName}
                 />
                 <div>

@@ -68,14 +68,31 @@ async function saveMessageToDb(
 
     if (!conversation) {
       console.log(`[DB Debug] Creating new conversation for ${contactNumber}`);
+
+      // Try to get the contact's real name from WhatsAppManager session
+      let contactName = contactNumber; // Default to number
+      try {
+        const session = sessions.get(deviceId);
+        if (session && session.status === 'READY') {
+          const chats = await session.client.getChats();
+          const chat = chats.find(c => c.id._serialized === contactNumber || c.id.user === contactNumber.replace(/\D/g, ''));
+          if (chat && chat.name) {
+            contactName = chat.name;
+            console.log(`[DB Debug] Found contact name: ${contactName}`);
+          }
+        }
+      } catch (nameError) {
+        console.error(`[DB Debug] Error fetching contact name, using number:`, nameError);
+      }
+
       conversation = await storage.createConversation({
         deviceId,
-        contactName: contactNumber, // Default name to number initially
+        contactName, // Use actual name or fallback to number
         contactPhone: contactNumber,
         isActive: true,
         unreadCount: 0,
       });
-      console.log(`[DB Debug] Conversation created with ID: ${conversation.id}`);
+      console.log(`[DB Debug] Conversation created with ID: ${conversation.id}, name: ${contactName}`);
     } else {
       console.log(`[DB Debug] Found existing conversation ID: ${conversation.id}`);
     }
