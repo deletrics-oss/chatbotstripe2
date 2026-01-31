@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import { useState, useEffect } from "react";
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog } from "lucide-react";
-=======
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Crown } from "lucide-react";
->>>>>>> 519d37e14a66e309028e2f561ec7faf86ae39188
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog, Crown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
