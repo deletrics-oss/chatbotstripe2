@@ -82,16 +82,33 @@ export default async function runApp(
   await setup(app, server);
 
   // Serve the app on the port specified in the environment variable PORT
-  // Default to 3035 for production Ubuntu deployment
+  // Priority: process.env.PORT > 3025
   const port = parseInt(process.env.PORT || '3025', 10);
+
+  log(`Tentando iniciar servidor na porta ${port}...`, "express");
+
   server.listen({
     port,
     host: "0.0.0.0",
   }, () => {
-    log(`serving on port ${port}`);
-    // Restore WhatsApp sessions
+    log(`Servidor rodando com sucesso na porta ${port}`, "express");
+
+    // Restore WhatsApp sessions only after server is ready
+    log("Iniciando restauração de sessões do WhatsApp...", "whatsapp");
     import("./whatsappManager").then(({ restoreWhatsAppSessions }) => {
-      restoreWhatsAppSessions().catch(err => log(`Failed to restore sessions: ${err}`));
+      restoreWhatsAppSessions()
+        .then(() => log("Restauração de sessões do WhatsApp concluída", "whatsapp"))
+        .catch(err => log(`Erro na restauração de sessões: ${err}`, "whatsapp"));
     });
+  });
+
+  // Handle server errors (like EADDRINUSE)
+  server.on('error', (error: any) => {
+    if (error.code === 'EADDRINUSE') {
+      log(`ERRO CRÍTICO: A porta ${port} já está em uso!`, "express");
+      log(`Verifique se há outro processo PM2 rodando ou use: fuser -k ${port}/tcp`, "express");
+    } else {
+      log(`Erro no servidor: ${error.message}`, "express");
+    }
   });
 }

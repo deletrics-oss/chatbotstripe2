@@ -845,7 +845,7 @@ export class MemStorage implements IStorage {
   async getMessagesCountLast24h(): Promise<number> {
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    
+
     return Array.from(this.messages.values())
       .filter(m => m.timestamp && m.timestamp >= yesterday)
       .length;
@@ -1258,7 +1258,9 @@ export class MemStorage implements IStorage {
 // - DatabaseStorage: PostgreSQL (produção - requer DATABASE_URL configurada)
 
 // Usando MemStorage no Replit (DATABASE_URL ainda não propagada)
-export const storage = new MemStorage();
+// export const storage = new MemStorage();
 
 // Para produção no seu servidor Linux, troque para:
-// export const storage = new DatabaseStorage();
+export const storage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new MemStorage();
