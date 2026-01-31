@@ -219,6 +219,259 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ BILLING CONFIG ROUTES ============
+  app.get('/api/billing/config', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const config = storage.getBillingConfig();
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching billing config:", error);
+      res.status(500).json({ error: "Failed to fetch billing config" });
+    }
+  });
+
+  app.post('/api/billing/config', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const config = storage.saveBillingConfig(req.body);
+      res.json(config);
+    } catch (error) {
+      console.error("Error saving billing config:", error);
+      res.status(500).json({ error: "Failed to save billing config" });
+    }
+  });
+
+  app.post('/api/billing/test-stripe', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const { secretKey } = req.body;
+      if (!secretKey) {
+        return res.status(400).json({ error: "Secret key required" });
+      }
+
+      const testStripe = new Stripe(secretKey, { apiVersion: "2025-11-17.clover" });
+      const account = await testStripe.accounts.list({ limit: 1 });
+
+      res.json({ success: true, accountName: "Connected" });
+    } catch (error: any) {
+      console.error("Stripe test error:", error);
+      res.status(400).json({ success: false, error: error.message || "Invalid Stripe key" });
+    }
+  });
+
+  // ============ PUBLIC PLANS ROUTE (for landing page) ============
+  app.get('/api/plans', async (req, res) => {
+    try {
+      const config = storage.getBillingConfig();
+
+      const plans = [
+        {
+          id: 'free',
+          name: 'Free Trial',
+          price: 0,
+          priceId: '',
+          features: [
+            'Todas as funcionalidades por 30 dias',
+            '1 dispositivo WhatsApp',
+            'Editor de lógicas JSON',
+            'Chat em tempo real',
+            'Templates prontos'
+          ],
+          recommended: false
+        },
+        {
+          id: 'basic',
+          name: config.basicName,
+          price: config.basicPrice,
+          priceId: config.basicPriceId,
+          features: config.basicFeatures.split('\n').filter((f: string) => f.trim()),
+          recommended: true
+        },
+        {
+          id: 'full',
+          name: config.enterpriseName,
+          price: config.enterprisePrice,
+          priceId: config.enterprisePriceId,
+          features: config.enterpriseFeatures.split('\n').filter((f: string) => f.trim()),
+          recommended: false
+        }
+      ];
+
+      res.json({
+        plans,
+        trialDays: config.trialDays,
+        stripeEnabled: config.stripeEnabled,
+        pixEnabled: config.pixEnabled,
+        pixKey: config.pixEnabled ? config.pixKey : undefined,
+        pixBeneficiary: config.pixEnabled ? config.pixBeneficiary : undefined,
+        pixBank: config.pixEnabled ? config.pixBank : undefined
+      });
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ error: "Failed to fetch plans" });
+    }
+  });
+
+  // ============ SUBSCRIPTION ROUTES ============
+  app.get('/api/subscription', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Calculate trial days left
+      let trialDaysLeft = null;
+      let isTrialing = false;
+
+      if (user.currentPlan === 'free' && user.planExpiresAt) {
+        const now = new Date();
+        const expiresAt = new Date(user.planExpiresAt);
+        const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        trialDaysLeft = Math.max(0, daysLeft);
+        isTrialing = trialDaysLeft > 0;
+      }
+
+      res.json({
+        planId: user.currentPlan,
+        planName: user.currentPlan === 'free' ? 'Free Trial' :
+          user.currentPlan === 'basic' ? 'Básico' : 'Full',
+        status: user.stripeSubscriptionId ? 'active' : (user.currentPlan === 'free' ? 'trialing' : 'none'),
+        currentPeriodEnd: user.planExpiresAt,
+        isTrialing,
+        trialDaysLeft
+      });
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
+      res.status(500).json({ error: "Failed to fetch subscription" });
+    }
+  });
+
+  app.post('/api/checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { planId, priceId } = req.body;
+      const config = storage.getBillingConfig();
+
+      if (!config.stripeEnabled || !config.stripeSecretKey) {
+        return res.status(400).json({ error: "Stripe não configurado. Entre em contato com o administrador." });
+      }
+
+      if (!priceId) {
+        return res.status(400).json({ error: "Price ID required" });
+      }
+
+      const checkoutStripe = new Stripe(config.stripeSecretKey, { apiVersion: "2025-11-17.clover" });
+
+      const session = await checkoutStripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription',
+        success_url: `${req.headers.origin}/billing?success=true`,
+        cancel_url: `${req.headers.origin}/billing?canceled=true`,
+        client_reference_id: userId,
+        metadata: { planId, userId }
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ error: error.message || "Failed to create checkout session" });
+    }
+  });
+
+  // ============ SYSTEM ASSISTANT (GURU) ROUTES ============
+  app.post('/api/assistant/chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { message, history } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ error: "Message required" });
+      }
+
+      const ai = getAI(user?.geminiApiKey);
+      if (!ai) {
+        return res.status(503).json({ error: "AI not configured" });
+      }
+
+      const systemPrompt = `Você é o Guru do Sistema, um assistente especializado em ajudar usuários a usar este sistema de chatbot para WhatsApp.
+
+Você conhece profundamente as seguintes funcionalidades:
+1. **Dispositivos WhatsApp**: Conectar WhatsApp via QR Code, gerenciar múltiplos dispositivos
+2. **Lógicas JSON**: Criar regras de resposta automática com keywords e replies
+3. **IA Gemini**: Bot inteligente que responde usando inteligência artificial
+4. **Base de Conhecimento**: Adicionar conteúdo para a IA usar em respostas
+5. **Comportamentos**: Configurar tom e personalidade do bot
+6. **Disparos em Massa**: Enviar mensagens para múltiplos contatos
+7. **Assistentes Web**: Criar widgets de chat para sites
+8. **Planos**: Free Trial (30 dias), Básico e Full
+
+Seja amigável, didático e objetivo. Use emojis quando apropriado.
+Responda em português brasileiro.`;
+
+      const contents = history?.map((h: any) => ({
+        role: h.role === 'user' ? 'user' : 'model',
+        parts: [{ text: h.content }]
+      })) || [];
+
+      contents.push({ role: 'user', parts: [{ text: message }] });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        config: { systemInstruction: systemPrompt },
+        contents: contents.map((c: any) => ({ role: c.role, parts: c.parts }))
+      });
+
+      res.json({ response: response.text || "Desculpe, não consegui processar sua pergunta." });
+    } catch (error) {
+      console.error("Assistant chat error:", error);
+      res.status(500).json({ error: "Failed to get response" });
+    }
+  });
+
+  // ============ ONBOARDING ROUTES ============
+  app.post('/api/auth/complete-onboarding', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Mark onboarding as complete (add field to user if needed)
+      await storage.updateUser(userId, { onboardingComplete: true });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ error: "Failed to complete onboarding" });
+    }
+  });
+
   // ============ AUTH ROUTES ============
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {

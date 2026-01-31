@@ -643,7 +643,66 @@ const PRESET_BEHAVIORS: BotBehaviorConfig[] = [
   },
 ];
 
+// Billing Configuration Interface
+export interface BillingConfig {
+  billingMode: 'manual' | 'automatic';
+  stripeEnabled: boolean;
+  stripePublicKey: string;
+  stripeSecretKey: string;
+  stripeWebhookSecret: string;
+  nupayEnabled: boolean;
+  nupayClientId: string;
+  nupayClientSecret: string;
+  pixEnabled: boolean;
+  pixKey: string;
+  pixBeneficiary: string;
+  pixBank: string;
+  // Plans
+  basicName: string;
+  basicPrice: number;
+  basicPriceId: string;
+  basicFeatures: string;
+  proName: string;
+  proPrice: number;
+  proPriceId: string;
+  proFeatures: string;
+  enterpriseName: string;
+  enterprisePrice: number;
+  enterprisePriceId: string;
+  enterpriseFeatures: string;
+  trialDays: number;
+}
+
+const DEFAULT_BILLING_CONFIG: BillingConfig = {
+  billingMode: 'manual',
+  stripeEnabled: false,
+  stripePublicKey: '',
+  stripeSecretKey: '',
+  stripeWebhookSecret: '',
+  nupayEnabled: false,
+  nupayClientId: '',
+  nupayClientSecret: '',
+  pixEnabled: true,
+  pixKey: '',
+  pixBeneficiary: '',
+  pixBank: '',
+  basicName: 'Básico',
+  basicPrice: 29.90,
+  basicPriceId: '',
+  basicFeatures: '2 dispositivos WhatsApp\nEditor de lógicas JSON completo\nUpload de JSON customizado\nTemplates prontos\nChat em tempo real\nBase de conhecimento',
+  proName: 'Profissional',
+  proPrice: 69.90,
+  proPriceId: '',
+  proFeatures: 'Agendamentos ilimitados\n5 Profissionais\nWhatsApp Bot\nSuporte prioritário',
+  enterpriseName: 'Full',
+  enterprisePrice: 99.90,
+  enterprisePriceId: '',
+  enterpriseFeatures: '3 dispositivos WhatsApp\nLógicas JSON + IA Gemini\nBot inteligente que aprende\nRespostas IA personalizadas\nGerador automático de lógicas\nWebhooks e integrações',
+  trialDays: 30,
+};
+
 // In-memory storage implementation
+
 export class MemStorage implements IStorage {
   private users = new Map<string, User>();
   private devices = new Map<string, WhatsappDevice>();
@@ -656,6 +715,7 @@ export class MemStorage implements IStorage {
   private broadcastContacts = new Map<string, any>();
   private broadcastTemplates = new Map<string, BroadcastTemplate>();
   private webAssistants = new Map<string, WebAssistant>();
+  private billingConfig: BillingConfig | null = null;
 
   constructor() {
     this.loadData();
@@ -667,8 +727,14 @@ export class MemStorage implements IStorage {
       }
     });
 
+    // Initialize default billing config if not exists
+    if (!this.billingConfig) {
+      this.billingConfig = DEFAULT_BILLING_CONFIG;
+    }
+
     this.saveData(); // Save initial state including presets
   }
+
 
   private loadData() {
     try {
@@ -696,6 +762,7 @@ export class MemStorage implements IStorage {
         if (data.broadcasts) this.broadcasts = new Map(data.broadcasts.map((b: any) => [b.id, revive(b)]));
         if (data.broadcastContacts) this.broadcastContacts = new Map(data.broadcastContacts.map((c: any) => [c.id, revive(c)]));
         if (data.broadcastTemplates) this.broadcastTemplates = new Map(data.broadcastTemplates.map((t: any) => [t.id, revive(t)]));
+        if (data.billingConfig) this.billingConfig = data.billingConfig;
 
         console.log(`[Storage] Data loaded from ${DB_FILE}`);
       }
@@ -718,6 +785,7 @@ export class MemStorage implements IStorage {
         broadcastContacts: Array.from(this.broadcastContacts.values()),
         webAssistants: Array.from(this.webAssistants.values()),
         broadcastTemplates: Array.from(this.broadcastTemplates.values()),
+        billingConfig: this.billingConfig,
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
     } catch (error) {
@@ -1171,6 +1239,17 @@ export class MemStorage implements IStorage {
   async deleteBroadcastTemplate(id: string): Promise<void> {
     this.broadcastTemplates.delete(id);
     this.saveData();
+  }
+
+  // Billing Config
+  getBillingConfig(): BillingConfig {
+    return this.billingConfig || DEFAULT_BILLING_CONFIG;
+  }
+
+  saveBillingConfig(config: Partial<BillingConfig>): BillingConfig {
+    this.billingConfig = { ...this.getBillingConfig(), ...config };
+    this.saveData();
+    return this.billingConfig;
   }
 }
 

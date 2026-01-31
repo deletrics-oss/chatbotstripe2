@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { SystemAssistant } from "@/components/system-assistant";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -19,6 +20,7 @@ import KnowledgeEditor from "@/pages/knowledge-editor";
 import Behaviors from "@/pages/behaviors";
 import BehaviorEditor from "@/pages/behavior-editor";
 import Billing from "@/pages/billing";
+import BillingConfig from "@/pages/billing-config";
 import Settings from "@/pages/settings";
 import Broadcast from "@/pages/broadcast";
 import WebAssistants from "@/pages/web-assistants";
@@ -26,7 +28,7 @@ import PublicChat from "@/pages/public-chat";
 import SuperAdmin from "@/pages/super-admin";
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -88,12 +90,15 @@ function AppContent() {
               <Route path="/web-assistants" component={WebAssistants} />
               <Route path="/broadcast" component={Broadcast} />
               <Route path="/billing" component={Billing} />
+              <Route path="/billing-config" component={BillingConfig} />
               <Route path="/settings" component={Settings} />
               <Route path="/super-admin" component={SuperAdmin} />
               <Route component={NotFound} />
             </Switch>
           </main>
         </div>
+        {/* System Guru Assistant - floating chat */}
+        <SystemAssistant />
       </div>
     </SidebarProvider>
   );

@@ -1,4 +1,9 @@
+<<<<<<< HEAD
+import { useState, useEffect } from "react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog } from "lucide-react";
+=======
 import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Crown } from "lucide-react";
+>>>>>>> 519d37e14a66e309028e2f561ec7faf86ae39188
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -14,6 +19,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
   {
@@ -79,6 +85,22 @@ const adminMenuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
+  const [isTrialing, setIsTrialing] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetch('/api/subscription')
+        .then(res => res.json())
+        .then(data => {
+          if (data) {
+            setIsTrialing(data.isTrialing || false);
+            setTrialDaysLeft(data.trialDaysLeft ?? null);
+          }
+        })
+        .catch(() => { });
+    }
+  }, [user]);
 
   const getPlanBadge = (plan: string) => {
     const badges = {
@@ -91,6 +113,11 @@ export function AppSidebar() {
 
   const planBadge = user ? getPlanBadge(user.currentPlan) : null;
 
+  // Add admin menu item dynamically
+  const allMenuItems = user?.isAdmin
+    ? [...menuItems, { title: "Config Cobrança", url: "/billing-config", icon: Cog }]
+    : menuItems;
+
   return (
     <Sidebar data-testid="sidebar-main">
       <SidebarContent>
@@ -100,7 +127,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {allMenuItems.map((item) => {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -136,6 +163,31 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         {user && (
           <div className="space-y-3">
+            {/* Trial Days Badge */}
+            {isTrialing && trialDaysLeft !== null && (
+              <div className={cn(
+                "rounded-lg p-3 text-center text-sm",
+                trialDaysLeft > 7
+                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                  : trialDaysLeft > 3
+                    ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"
+                    : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+              )} data-testid="trial-badge">
+                <div className="flex items-center justify-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-semibold">
+                    {trialDaysLeft > 0
+                      ? `🎁 ${trialDaysLeft} dias grátis`
+                      : "⚠️ Trial expirado"
+                    }
+                  </span>
+                </div>
+                <Link href="/billing" className="block mt-2 text-xs underline hover:no-underline">
+                  Ver planos →
+                </Link>
+              </div>
+            )}
+
             <div className="flex items-center gap-3 p-2 rounded-lg">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={undefined} />
