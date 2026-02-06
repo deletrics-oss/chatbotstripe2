@@ -6,30 +6,30 @@ import * as path from "path";
 if (!process.env.DATABASE_URL) {
   const envPath = path.resolve(process.cwd(), ".env");
   if (fs.existsSync(envPath)) {
+    console.log("[Drizzle] Reading .env at:", envPath);
     const content = fs.readFileSync(envPath, "utf8");
-    const lines = content.split(/\r?\n/);
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+    const foundKeys: string[] = [];
 
-      const splitIdx = trimmedLine.indexOf("=");
-      if (splitIdx === -1) continue;
+    // Improved regex to find DATABASE_URL regardless of weird characters
+    const match = content.match(/^[ \t]*DATABASE_URL[ \t]*=[ \t]*["']?([^"'\r\n]+)["']?/m);
 
-      const key = trimmedLine.slice(0, splitIdx).trim();
-      const value = trimmedLine.slice(splitIdx + 1).trim();
-
-      if (key === "DATABASE_URL") {
-        process.env.DATABASE_URL = value.replace(/^["']|["']$/g, "");
-        break;
-      }
+    if (match) {
+      process.env.DATABASE_URL = match[1].trim();
+      console.log("[Drizzle] Found DATABASE_URL in .env!");
+    } else {
+      // Collect keys for debugging
+      content.split(/\r?\n/).forEach(line => {
+        const k = line.split("=")[0].trim();
+        if (k && !k.startsWith("#")) foundKeys.push(k);
+      });
+      console.log("[Drizzle] Keys found in .env:", foundKeys.join(", "));
     }
   }
 }
 
 if (!process.env.DATABASE_URL) {
-  console.log("Current Directory:", process.cwd());
-  console.log(".env file exists:", fs.existsSync(path.resolve(process.cwd(), ".env")));
-  throw new Error("DATABASE_URL not found. Check if .env is in the same folder.");
+  console.log("[Drizzle] Current Dir:", process.cwd());
+  throw new Error("DATABASE_URL not found. Run: DATABASE_URL='sua_url' npm run db:push");
 }
 
 export default defineConfig({
