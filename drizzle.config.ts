@@ -2,14 +2,17 @@ import { defineConfig } from "drizzle-kit";
 import * as fs from "fs";
 import * as path from "path";
 
-// Attempt to load DATABASE_URL from .env if not present
+// robust .env loader for VPS
 if (!process.env.DATABASE_URL) {
   const envPath = path.resolve(process.cwd(), ".env");
   if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, "utf8");
-    const match = envContent.match(/^DATABASE_URL=(.+)$/m);
-    if (match) {
-      process.env.DATABASE_URL = match[1].trim().replace(/^["']|["']$/g, "");
+    const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+    for (const line of lines) {
+      const [key, ...parts] = line.trim().split("=");
+      if (key === "DATABASE_URL") {
+        process.env.DATABASE_URL = parts.join("=").trim().replace(/^["']|["']$/g, "");
+        break;
+      }
     }
   }
 }
