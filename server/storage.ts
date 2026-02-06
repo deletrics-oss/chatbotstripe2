@@ -30,6 +30,7 @@ import {
   broadcastTemplates,
   type BroadcastTemplate,
   type InsertBroadcastTemplate,
+  billingConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
