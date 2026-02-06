@@ -1360,7 +1360,7 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
 
       // Check plan limits
       const existingDevices = await storage.getDevices(userId);
-      const maxDevices = user?.isAdmin ? 999 : (user?.currentPlan === 'free' ? 1 : user?.currentPlan === 'basic' ? 2 : 999);
+      const maxDevices = user?.isAdmin ? 999 : (user?.currentPlan === 'free' ? 5 : user?.currentPlan === 'basic' ? 10 : 999);
 
       if (existingDevices.length >= maxDevices) {
         return res.status(403).json({
