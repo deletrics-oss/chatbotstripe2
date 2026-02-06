@@ -127,6 +127,10 @@ export interface IStorage {
   getBroadcastTemplates(userId: string): Promise<BroadcastTemplate[]>;
   createBroadcastTemplate(template: InsertBroadcastTemplate): Promise<BroadcastTemplate>;
   deleteBroadcastTemplate(id: string): Promise<void>;
+
+  // Billing Config
+  getBillingConfig(): Promise<BillingConfig>;
+  saveBillingConfig(config: Partial<BillingConfig>): Promise<BillingConfig>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -585,6 +589,33 @@ export class DatabaseStorage implements IStorage {
   async deleteWebAssistant(id: string): Promise<void> {
     await db.delete(webAssistants).where(eq(webAssistants.id, id));
   }
+
+  // Billing Config
+  async getBillingConfig(): Promise<BillingConfig> {
+    try {
+      const [config] = await db.select().from(billingConfig);
+      if (!config) {
+        // Se não encontrar, criar um com valores default
+        const [newConfig] = await db.insert(billingConfig).values({}).returning();
+        return newConfig;
+      }
+      return config;
+    } catch (error) {
+      console.error("[Billing] Error getting config:", error);
+      // Fallback para um objeto dummy se a tabela não existir ou der erro
+      return DEFAULT_BILLING_CONFIG as unknown as BillingConfig;
+    }
+  }
+
+  async saveBillingConfig(data: Partial<BillingConfig>): Promise<BillingConfig> {
+    const current = await this.getBillingConfig();
+    const [updated] = await db
+      .update(billingConfig)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(billingConfig.id, current.id))
+      .returning();
+    return updated;
+  }
 }
 
 // Comportamentos Padrões (Presets)
@@ -643,35 +674,7 @@ const PRESET_BEHAVIORS: BotBehaviorConfig[] = [
   },
 ];
 
-// Billing Configuration Interface
-export interface BillingConfig {
-  billingMode: 'manual' | 'automatic';
-  stripeEnabled: boolean;
-  stripePublicKey: string;
-  stripeSecretKey: string;
-  stripeWebhookSecret: string;
-  nupayEnabled: boolean;
-  nupayClientId: string;
-  nupayClientSecret: string;
-  pixEnabled: boolean;
-  pixKey: string;
-  pixBeneficiary: string;
-  pixBank: string;
-  // Plans
-  basicName: string;
-  basicPrice: number;
-  basicPriceId: string;
-  basicFeatures: string;
-  proName: string;
-  proPrice: number;
-  proPriceId: string;
-  proFeatures: string;
-  enterpriseName: string;
-  enterprisePrice: number;
-  enterprisePriceId: string;
-  enterpriseFeatures: string;
-  trialDays: number;
-}
+export type BillingConfig = typeof billingConfig.$inferSelect;
 
 const DEFAULT_BILLING_CONFIG: BillingConfig = {
   billingMode: 'manual',
@@ -1242,14 +1245,14 @@ export class MemStorage implements IStorage {
   }
 
   // Billing Config
-  getBillingConfig(): BillingConfig {
-    return this.billingConfig || DEFAULT_BILLING_CONFIG;
+  async getBillingConfig(): Promise<BillingConfig> {
+    return (this.billingConfig || DEFAULT_BILLING_CONFIG) as unknown as BillingConfig;
   }
 
-  saveBillingConfig(config: Partial<BillingConfig>): BillingConfig {
-    this.billingConfig = { ...this.getBillingConfig(), ...config };
+  async saveBillingConfig(config: Partial<BillingConfig>): Promise<BillingConfig> {
+    this.billingConfig = { ...((await this.getBillingConfig()) as any), ...config };
     this.saveData();
-    return this.billingConfig;
+    return this.billingConfig as unknown as BillingConfig;
   }
 }
 
