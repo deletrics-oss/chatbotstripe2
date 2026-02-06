@@ -48,6 +48,8 @@ export const users = pgTable("users", {
   // User's personal Gemini API key
   geminiApiKey: text("gemini_api_key"),
 
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -80,7 +82,11 @@ export const whatsappDevices = pgTable("whatsapp_devices", {
   qrCode: text("qr_code"),
   lastConnectedAt: timestamp("last_connected_at"),
   activeLogicId: varchar("active_logic_id"),
+  integrationType: varchar("integration_type").notNull().default('whatsapp-web-js'),
+  instanceName: varchar("instance_name"),
+  isGlobalSdr: boolean("is_global_sdr").notNull().default(false),
   isPaused: boolean("is_paused").notNull().default(false),
+  shouldTranscribe: boolean("should_transcribe").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -101,6 +107,7 @@ export const conversations = pgTable("conversations", {
   deviceId: varchar("device_id").notNull().references(() => whatsappDevices.id, { onDelete: 'cascade' }),
   contactName: varchar("contact_name").notNull(),
   contactPhone: varchar("contact_phone").notNull(),
+  contactProfilePic: text("contact_profile_pic"),
   lastMessageAt: timestamp("last_message_at").defaultNow(),
   unreadCount: integer("unread_count").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
@@ -123,6 +130,8 @@ export const messages = pgTable("messages", {
   direction: messageDirectionEnum("direction").notNull(),
   content: text("content").notNull(),
   isFromBot: boolean("is_from_bot").notNull().default(false),
+  mediaUrl: text("media_url"),
+  mediaType: varchar("media_type"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -130,6 +139,7 @@ export const messages = pgTable("messages", {
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   createdAt: true,
+  timestamp: true,
 });
 
 export type Message = typeof messages.$inferSelect;
@@ -225,14 +235,18 @@ export const broadcasts = pgTable("broadcasts", {
   deviceId: varchar("device_id").notNull().references(() => whatsappDevices.id, { onDelete: 'cascade' }),
   name: varchar("name").notNull(),
   message: text("message").notNull(),
-  mediaUrl: text("media_url"),
-  mediaType: varchar("media_type"), // image, video, document, audio
+  mediaUrl: text("media_url"), // Legacy single media URL
+  mediaType: varchar("media_type"), // Legacy: image, video, document, audio
+  mediaUrls: text("media_urls").array(), // New: Array of media URLs
+  mediaTypes: text("media_types").array(), // New: Array of media types
   status: broadcastStatusEnum("status").notNull().default('pending'),
   totalContacts: integer("total_contacts").notNull().default(0),
   sentCount: integer("sent_count").notNull().default(0),
   failedCount: integer("failed_count").notNull().default(0),
   delay: integer("delay").default(20),
+  scheduledAt: timestamp("scheduled_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
 });
@@ -250,11 +264,11 @@ export type InsertBroadcast = z.infer<typeof insertBroadcastSchema>;
 export const broadcastContacts = pgTable("broadcast_contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   broadcastId: varchar("broadcast_id").notNull().references(() => broadcasts.id, { onDelete: 'cascade' }),
-  contactName: varchar("contact_name").notNull(),
-  contactPhone: varchar("contact_phone").notNull(),
+  contactName: varchar("contact_name"), // Optional in second def
+  phone: varchar("phone").notNull(), // Moved from contactPhone
   status: varchar("status").notNull().default('pending'), // pending, sent, failed
+  error: text("error"), // Moved from errorMessage
   sentAt: timestamp("sent_at"),
-  errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -298,6 +312,8 @@ export const broadcastTemplates = pgTable("broadcast_templates", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: varchar("name").notNull(),
   content: text("content").notNull(),
+  mediaUrls: text("media_urls").array(), // Suporte para múltiplas mídias
+  mediaTypes: text("media_types").array(), // Tipos correspondentes (image, video, etc)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -308,6 +324,31 @@ export const insertBroadcastTemplateSchema = createInsertSchema(broadcastTemplat
 
 export type BroadcastTemplate = typeof broadcastTemplates.$inferSelect;
 export type InsertBroadcastTemplate = z.infer<typeof insertBroadcastTemplateSchema>;
+
+// ============ MESSAGE TEMPLATES ============
+
+export const messageTemplates = pgTable("message_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  content: text("content").notNull(),
+  category: varchar("category"),
+  mediaUrls: text("media_urls").array(), // Suporte para múltiplas mídias
+  mediaTypes: text("media_types").array(), // Tipos correspondentes
+  buttons: jsonb("buttons"),
+  footerText: text("footer_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
 
 // ============ RELATIONS ============
 
@@ -370,3 +411,125 @@ export const knowledgeBaseRelations = relations(knowledgeBase, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const broadcastsRelations = relations(broadcasts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [broadcasts.userId],
+    references: [users.id],
+  }),
+  device: one(whatsappDevices, {
+    fields: [broadcasts.deviceId],
+    references: [whatsappDevices.id],
+  }),
+  contacts: many(broadcastContacts),
+}));
+
+export const broadcastContactsRelations = relations(broadcastContacts, ({ one }) => ({
+  broadcast: one(broadcasts, {
+    fields: [broadcastContacts.broadcastId],
+    references: [broadcasts.id],
+  }),
+}));
+
+// ============ SYSTEM LOGS ============
+
+export const logCategoryEnum = pgEnum('log_category', ['whatsapp', 'ai', 'bot', 'system']);
+export const logLevelEnum = pgEnum('log_level', ['info', 'warning', 'error']);
+
+export const systemLogs = pgTable("system_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  deviceId: varchar("device_id").references(() => whatsappDevices.id, { onDelete: 'set null' }),
+  category: logCategoryEnum("category").notNull(),
+  level: logLevelEnum("level").notNull().default('info'),
+  message: text("message").notNull(),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSystemLogSchema = createInsertSchema(systemLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SystemLog = typeof systemLogs.$inferSelect;
+export type InsertSystemLog = z.infer<typeof insertSystemLogSchema>;
+
+export type LogCategory = 'whatsapp' | 'ai' | 'bot' | 'system' | 'broadcast';
+export type LogLevel = 'info' | 'warning' | 'error';
+
+export const systemLogsRelations = relations(systemLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [systemLogs.userId],
+    references: [users.id],
+  }),
+  device: one(whatsappDevices, {
+    fields: [systemLogs.deviceId],
+    references: [whatsappDevices.id],
+  }),
+}));
+
+// ============ BILLING CONFIG ============
+
+export const billingConfig = pgTable("billing_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stripePublicKey: text("stripe_public_key"),
+  stripeSecretKey: text("stripe_secret_key"),
+  pixKey: text("pix_key"),
+  pixReceiverName: text("pix_receiver_name"),
+  geminiApiKey: text("gemini_api_key"),
+
+  billingMode: varchar("billing_mode").default('manual'),
+  stripeEnabled: boolean("stripe_enabled").default(false),
+  stripeWebhookSecret: text("stripe_webhook_secret"),
+  nupayEnabled: boolean("nupay_enabled").default(false),
+  nupayClientId: text("nupay_client_id"),
+  nupayClientSecret: text("nupay_client_secret"),
+  pixEnabled: boolean("pix_enabled").default(true),
+  pixBank: text("pix_bank"),
+  pixBeneficiary: text("pix_beneficiary"),
+
+  // Trial settings
+  trialDays: integer("trial_days").default(7),
+
+  // Plan Names
+  freePlanName: varchar("free_plan_name").default("Free Trial"),
+  basicPlanName: varchar("basic_plan_name").default("Básico"),
+  fullPlanName: varchar("full_plan_name").default("Full"),
+
+  // Plan Prices
+  basicPlanPrice: integer("basic_plan_price").default(2990), // em centavos
+  fullPlanPrice: integer("full_plan_price").default(5990), // em centavos
+
+  // Pro Plan
+  proPlanName: varchar("pro_plan_name").default("Profissional"),
+  proPlanPrice: integer("pro_plan_price").default(6990),
+  proPriceId: varchar("pro_price_id"),
+  proPlanFeatures: jsonb("pro_plan_features").default(["Agendamentos ilimitados", "WhatsApp Bot"]),
+
+  // Enterprise Plan
+  enterprisePlanName: varchar("enterprise_plan_name").default("Enterprise"),
+  enterprisePlanPrice: integer("enterprise_plan_price").default(9990),
+  enterprisePriceId: varchar("enterprise_price_id"),
+  enterprisePlanFeatures: jsonb("enterprise_plan_features").default(["Tudo do Pro", "IA Avançada"]),
+
+  // Stripe Price IDs (from Stripe Dashboard)
+  basicPriceId: varchar("basic_price_id"), // price_xxxxx
+  fullPriceId: varchar("full_price_id"), // price_xxxxx
+
+  // Plan Features (JSONB arrays)
+  freePlanFeatures: jsonb("free_plan_features").default(["1 Bot WhatsApp", "Respostas Básicas", "Suporte da Comunidade"]),
+  basicPlanFeatures: jsonb("basic_plan_features").default(["Bots Ilimitados", "Integração AI Básica", "Suporte por Email"]),
+  fullPlanFeatures: jsonb("full_plan_features").default(["Tudo do Básico", "AI Avançada (GPT-4)", "Suporte Prioritário", "API Acesso"]),
+
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+
+export const insertBillingConfigSchema = createInsertSchema(billingConfig).omit({
+  id: true,
+  updatedAt: true
+});
+
+export type BillingConfig = typeof billingConfig.$inferSelect;
+export type InsertBillingConfig = z.infer<typeof insertBillingConfigSchema>;

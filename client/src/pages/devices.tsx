@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson } from "lucide-react";
+import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson, RotateCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +111,59 @@ export default function Devices() {
     },
   });
 
+  const setWebhookMutation = useMutation({
+    mutationFn: async (deviceId: string) => {
+      // Dynamic host discovery or hardcoded VPS IP
+      const webhookUrl = `${window.location.origin}/api/webhooks/evolution`;
+      return await apiRequest("POST", `/api/devices/${deviceId}/set-webhook`, { url: webhookUrl });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Webhook Configurado",
+        description: "O dispositivo agora está pronto para receber mensagens",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao configurar Webhook",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const toggleSdrMutation = useMutation({
+    mutationFn: async ({ deviceId, isGlobalSdr }: { deviceId: string; isGlobalSdr: boolean }) => {
+      return await apiRequest("POST", `/api/devices/${deviceId}/toggle-sdr`, { isGlobalSdr });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
+      toast({
+        title: "Configuração SDR atualizada",
+      });
+    },
+  });
+
+  const clearSessionMutation = useMutation({
+    mutationFn: async (deviceId: string) => {
+      return await apiRequest("POST", `/api/devices/${deviceId}/clear-session`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
+      toast({
+        title: "Instância Reiniciada",
+        description: "Clique em 'Reconectar' para gerar um novo QR Code",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível limpar a sessão",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       connected: { label: "Conectado", variant: "default" as const, color: "bg-status-online" },
@@ -128,7 +181,7 @@ export default function Devices() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6 md:p-8 space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Dispositivos WhatsApp</h1>
@@ -200,7 +253,7 @@ export default function Devices() {
           {devices.map((device) => {
             const statusInfo = getStatusBadge(device.connectionStatus);
             const activeLogicName = getActiveLogicName(device);
-            
+
             return (
               <Card key={device.id} data-testid={`device-card-${device.id}`}>
                 <CardHeader>
@@ -283,7 +336,7 @@ export default function Devices() {
                         ))}
                       </SelectContent>
                     </Select>
-                    
+
                     {activeLogicName && (
                       <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
                         <Badge variant={device.isPaused ? "secondary" : "default"} className="text-xs">
@@ -294,6 +347,29 @@ export default function Devices() {
                         </span>
                       </div>
                     )}
+
+                    {/* Evolution Specific Features */}
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="text-[10px] h-7 px-2"
+                        onClick={() => setWebhookMutation.mutate(device.id)}
+                        disabled={setWebhookMutation.isPending}
+                      >
+                        <Wifi className="w-3 h-3 mr-1" />
+                        Configurar Webhook
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px]">SDR Global</Label>
+                        <input
+                          type="checkbox"
+                          checked={!!(device as any).isGlobalSdr}
+                          onChange={(e) => toggleSdrMutation.mutate({ deviceId: device.id, isGlobalSdr: e.target.checked })}
+                          className="w-3 h-3"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex gap-2">
@@ -328,6 +404,16 @@ export default function Devices() {
                     >
                       <RefreshCw className="w-4 h-4 mr-2" />
                       Reconectar
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => clearSessionMutation.mutate(device.id)}
+                      disabled={clearSessionMutation.isPending}
+                      title="Limpar sessão e dados de autenticação"
+                      data-testid={`button-clear-session-${device.id}`}
+                    >
+                      <RotateCw className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="destructive"
