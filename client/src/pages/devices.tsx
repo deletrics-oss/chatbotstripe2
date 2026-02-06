@@ -16,6 +16,7 @@ import type { WhatsappDevice, LogicConfig } from "@shared/schema";
 export default function Devices() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState("");
+  const [newIntegrationType, setNewIntegrationType] = useState<"evolution" | "whatsapp-web-js">("evolution");
   const { toast } = useToast();
 
   const { data: devices, isLoading } = useQuery<WhatsappDevice[]>({
@@ -28,8 +29,8 @@ export default function Devices() {
   });
 
   const addDeviceMutation = useMutation({
-    mutationFn: async (name: string) => {
-      return await apiRequest("POST", "/api/devices", { name });
+    mutationFn: async ({ name, integrationType }: { name: string; integrationType: string }) => {
+      return await apiRequest("POST", "/api/devices", { name, integrationType });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
@@ -213,6 +214,22 @@ export default function Devices() {
                   data-testid="input-device-name"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="integration-type">Tipo de Integração</Label>
+                <Select
+                  value={newIntegrationType}
+                  onValueChange={(value: any) => setNewIntegrationType(value)}
+                >
+                  <SelectTrigger id="integration-type">
+                    <SelectValue placeholder="Selecione o motor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="evolution">Evolution API (Mais Estável/Rápido)</SelectItem>
+                    <SelectItem value="whatsapp-web-js">Legacy (Puppeteer/QRCode antigo)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -223,7 +240,7 @@ export default function Devices() {
                 Cancelar
               </Button>
               <Button
-                onClick={() => addDeviceMutation.mutate(newDeviceName)}
+                onClick={() => addDeviceMutation.mutate({ name: newDeviceName, integrationType: newIntegrationType })}
                 disabled={!newDeviceName || addDeviceMutation.isPending}
                 data-testid="button-submit"
               >
@@ -262,8 +279,11 @@ export default function Devices() {
                       <Smartphone className="w-5 h-5 text-primary" />
                       <div>
                         <CardTitle className="text-lg">{device.name}</CardTitle>
-                        <CardDescription className="mt-1">
+                        <CardDescription className="mt-1 flex items-center gap-2">
                           {device.phoneNumber || "Aguardando conexão"}
+                          <Badge variant="outline" className="text-[10px] uppercase h-4 px-1">
+                            {device.integrationType === 'evolution' ? 'evolution' : 'legacy'}
+                          </Badge>
                         </CardDescription>
                       </div>
                     </div>
