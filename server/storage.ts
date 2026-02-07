@@ -31,6 +31,9 @@ import {
   type BroadcastTemplate,
   type InsertBroadcastTemplate,
   billingConfig as billingConfigTable,
+  systemLogs,
+  type InsertSystemLog,
+  type SystemLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -132,6 +135,8 @@ export interface IStorage {
   // Billing Config
   getBillingConfig(): Promise<BillingConfig>;
   saveBillingConfig(config: Partial<BillingConfig>): Promise<BillingConfig>;
+  // System Logs
+  createSystemLog(log: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -156,6 +161,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBroadcastTemplate(id: string): Promise<void> {
     await db.delete(broadcastTemplates).where(eq(broadcastTemplates.id, id));
+  }
+
+  async createSystemLog(logData: any): Promise<any> {
+    const [log] = await db.insert(systemLogs).values(logData).returning();
+    return log;
   }
 
 
@@ -1254,6 +1264,11 @@ export class MemStorage implements IStorage {
     this.billingConfig = { ...((await this.getBillingConfig()) as any), ...config };
     this.saveData();
     return this.billingConfig as unknown as BillingConfig;
+  }
+
+  async createSystemLog(log: any): Promise<any> {
+    const newLog = { ...log, id: Math.random().toString(36).substr(2, 9), createdAt: new Date() };
+    return newLog;
   }
 }
 
