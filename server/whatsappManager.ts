@@ -323,39 +323,6 @@ async function sendLegacyMessage(deviceId: string, number: string, text: string,
   }
 }
 
-// Webhook Handler for Evolution
-export async function handleEvolutionWebhook(data: any) {
-  const event = data.event;
-  const instance = data.instance;
-
-  if (event === 'MESSAGES_UPSERT') {
-    const message = data.data;
-    const deviceId = instance;
-    const fromMe = message.key.fromMe;
-    const remoteJid = message.key.remoteJid;
-
-    if (fromMe || remoteJid.includes('@g.us')) return;
-
-    const contactNumber = remoteJid.split('@')[0];
-    let messageBody = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
-
-    await saveMessageToDb(deviceId, contactNumber, messageBody, 'incoming', false);
-    await processIncomingMessage(deviceId, contactNumber, messageBody);
-
-  } else if (event === 'CONNECTION_UPDATE') {
-    const status = data.data.status;
-    if (status === 'open') {
-      await storage.updateDevice(instance, { connectionStatus: 'connected', qrCode: null });
-    } else if (status === 'close' || status === 'refused') {
-      await storage.updateDevice(instance, { connectionStatus: 'disconnected' });
-    }
-  } else if (event === 'QRCODE_UPDATED') {
-    const qr = data.data.qrcode?.base64;
-    if (qr) {
-      await storage.updateDevice(instance, { qrCode: qr, connectionStatus: 'qr_ready' });
-    }
-  }
-}
 
 export async function processIncomingMessage(deviceId: string, contactNumber: string, messageBody: string) {
   const device = await storage.getDevice(deviceId);
