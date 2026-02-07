@@ -1335,16 +1335,16 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
       const devices = await storage.getDevices(userId);
 
       // Attach live status and QR code from whatsappManager (Evolution uses instance name = deviceId)
-      const devicesWithStatus = devices.map(device => {
+      const devicesWithStatus = await Promise.all(devices.map(async device => {
         const rawStatus = whatsappManager.getWhatsAppSessionStatus(device.id);
-        const qrCode = whatsappManager.getWhatsAppQRCode(device.id);
+        const qrCode = await whatsappManager.getWhatsAppQRCode(device.id);
 
         return {
           ...device,
           connectionStatus: device.connectionStatus, // Status is updated via webhook in Evolution
           qrCode: qrCode || device.qrCode
         };
-      });
+      }));
 
       res.json(devicesWithStatus);
     } catch (error) {

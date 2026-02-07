@@ -154,7 +154,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     }
 
     // Attach user to request
-    (req as any).user = { claims: { sub: user.id } };
+    (req as any).user = user;
     next();
   } catch (error) {
     console.error("Error verifying authentication:", error);
