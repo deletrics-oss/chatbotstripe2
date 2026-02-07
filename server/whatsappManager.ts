@@ -6,6 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { logSystemEvent } from "./logManager";
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
+export { MessageMedia };
 
 // Evolution API Configuration
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://127.0.0.1:8084";
@@ -464,3 +465,33 @@ export async function getWhatsAppContacts(deviceId: string) { return []; }
 export async function forceCleanupSession(deviceId: string) { return await destroyWhatsAppSession(deviceId); }
 export const sendMessage = sendWhatsAppMessage;
 export const saveMessageToDbExport = saveMessageToDb;
+
+export function getClient(deviceId: string) {
+  const session = sessions.get(deviceId);
+  return session?.client || null;
+}
+
+export async function getContactProfilePic(deviceId: string, contactId: string) {
+  const device = await storage.getDevice(deviceId);
+  if (!device) return null;
+
+  if (device.integrationType === 'evolution') {
+    // Evolution API doesn't easily provide profile pics via simple REST call 
+    // without more complex setup, stubbing for now to avoid crashes.
+    return null;
+  }
+
+  const client = getClient(deviceId);
+  if (!client) return null;
+
+  try {
+    const targetId = contactId.includes('@') ? contactId : `${contactId}@c.us`;
+    return await client.getProfilePicUrl(targetId);
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function getContactProfilePicUrl(deviceId: string, contactId: string) {
+  return getContactProfilePic(deviceId, contactId);
+}
