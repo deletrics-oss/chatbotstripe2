@@ -431,6 +431,61 @@ export async function restoreWhatsAppSessions(): Promise<void> {
   }
 }
 
+// Function to process incoming messages from Webhook
+export async function handleEvolutionWebhook(data: any) {
+  const event = data.event;
+  const instance = data.instance;
+
+  if (event === 'MESSAGES_UPSERT') {
+    const message = data.data;
+    const deviceId = instance;
+    const fromMe = message.key.fromMe;
+    const remoteJid = message.key.remoteJid;
+
+    if (fromMe || (remoteJid && remoteJid.includes('@g.us'))) return;
+
+    const contactNumber = remoteJid ? remoteJid.split('@')[0] : "";
+    if (!contactNumber) return;
+
+    let messageBody = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
+
+    // Handle Media/Transcription (Placeholder for future improved media support)
+    let mediaUrl, mediaType;
+    if (message.message?.imageMessage || message.message?.audioMessage || message.message?.videoMessage) {
+      mediaType = message.message?.imageMessage ? 'image/jpeg' : message.message?.audioMessage ? 'audio/mpeg' : 'video/mp4';
+    }
+
+    await saveMessageToDb(deviceId, contactNumber, messageBody, 'incoming', false, mediaUrl, mediaType);
+    await processIncomingMessage(deviceId, contactNumber, messageBody);
+
+  } else if (event === 'CONNECTION_UPDATE') {
+    const status = data.data.status;
+    if (status === 'open') {
+      await storage.updateDevice(instance, { connectionStatus: 'connected', qrCode: null });
+    } else if (status === 'close' || status === 'refused') {
+      await storage.updateDevice(instance, { connectionStatus: 'disconnected' });
+    }
+  } else if (event === 'QRCODE_UPDATED') {
+    const qr = data.data.qrcode?.base64;
+    if (qr) {
+      await storage.updateDevice(instance, { qrCode: qr, connectionStatus: 'qr_ready' });
+    }
+  }
+}
+
+export async function setEvolutionWebhook(deviceId: string, webhookUrl: string) {
+  return await evolutionRequest(`/webhook/set/${deviceId}`, 'POST', {
+    url: webhookUrl,
+    enabled: true,
+    webhook_by_events: false,
+    events: [
+      "MESSAGES_UPSERT",
+      "CONNECTION_UPDATE",
+      "QRCODE_UPDATED"
+    ]
+  });
+}
+
 export function getWhatsAppSessionStatus(deviceId: string) {
   const device = sessions.get(deviceId); // Check legacy Map first
   if (device) return device.status;

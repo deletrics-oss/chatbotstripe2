@@ -30,7 +30,7 @@ import {
   broadcastTemplates,
   type BroadcastTemplate,
   type InsertBroadcastTemplate,
-  billingConfig,
+  billingConfig as billingConfigTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -594,10 +594,10 @@ export class DatabaseStorage implements IStorage {
   // Billing Config
   async getBillingConfig(): Promise<BillingConfig> {
     try {
-      const [config] = await db.select().from(billingConfig);
+      const [config] = await db.select().from(billingConfigTable);
       if (!config) {
         // Se não encontrar, criar um com valores default
-        const [newConfig] = await db.insert(billingConfig).values({}).returning();
+        const [newConfig] = await db.insert(billingConfigTable).values({}).returning();
         return newConfig;
       }
       return config;
@@ -611,9 +611,9 @@ export class DatabaseStorage implements IStorage {
   async saveBillingConfig(data: Partial<BillingConfig>): Promise<BillingConfig> {
     const current = await this.getBillingConfig();
     const [updated] = await db
-      .update(billingConfig)
+      .update(billingConfigTable)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(billingConfig.id, current.id))
+      .where(eq(billingConfigTable.id, current.id))
       .returning();
     return updated;
   }
