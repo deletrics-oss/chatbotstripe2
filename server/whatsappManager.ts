@@ -34,7 +34,7 @@ function getAI() {
 // Helpers for Evolution API
 async function evolutionRequest(endpoint: string, method: string = 'GET', body: any = null) {
   const url = `${EVOLUTION_API_URL}${endpoint}`;
-  const headers = {
+  const headers: any = {
     'Content-Type': 'application/json',
     'apikey': EVOLUTION_API_KEY
   };
@@ -44,14 +44,38 @@ async function evolutionRequest(endpoint: string, method: string = 'GET', body: 
 
   try {
     const response = await fetch(url, options);
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || `Evolution API error: ${response.statusText}`);
+    // Evolution sometimes returns text for 404 or root
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || `Evolution API error: ${response.statusText}`);
+      }
+      return await response.json();
+    } else {
+      if (!response.ok) throw new Error(`Evolution API error: ${response.statusText}`);
+      return await response.text();
     }
-    return await response.json();
   } catch (error) {
     console.error(`[Evolution API] Request failed (${endpoint}):`, error);
     throw error;
+  }
+}
+
+export async function checkEvolutionStatus() {
+  try {
+    // Check basic health (root endpoint usually returns JSON welcome message)
+    const result = await evolutionRequest('/');
+    return {
+      status: 'ONLINE',
+      version: result?.version || 'Unknown',
+      message: result?.message || 'Evolution API is reachable'
+    };
+  } catch (error: any) {
+    return {
+      status: 'OFFLINE',
+      error: error.message
+    };
   }
 }
 
@@ -78,12 +102,17 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
     const device = await storage.getDevice(deviceId);
     if (!device) throw new Error("Device not found");
 
+    // Step 1: Create Instance (without QR first to avoid "reading 'state'" error)
     await evolutionRequest('/instance/create', 'POST', {
       instanceName: deviceId,
       token: deviceId,
       number: device.phoneNumber || "",
-      qrcode: true
+      qrcode: false,
+      integration: "WHATSAPP-BAILEYS"
     });
+
+    // Step 2: Trigger Connection/QR Generation immediately
+    await evolutionRequest(`/instance/connect/${deviceId}`, 'GET');
 
     await storage.updateDevice(deviceId, {
       connectionStatus: 'connecting',
@@ -211,7 +240,22 @@ export async function getWhatsAppQRCode(deviceId: string): Promise<string | null
         return data.base64;
       }
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      // If instance not found (404), try to create it again
+      if (error.message && (error.message.includes('not found') || error.message.includes('404'))) {
+        console.log(`[Evolution] Instance ${deviceId} not found, attempting to recreate...`);
+        await createEvolutionSession(deviceId);
+        // Retry connection once
+        try {
+          const retryData = await evolutionRequest(`/instance/connect/${deviceId}`);
+          if (retryData.base64) {
+            await storage.updateDevice(deviceId, { qrCode: retryData.base64, connectionStatus: 'qr_ready' });
+            return retryData.base64;
+          }
+        } catch (retryError) {
+          console.error(`[Evolution] Retry connection failed:`, retryError);
+        }
+      }
       return null;
     }
   } else {
@@ -454,10 +498,11 @@ export async function setEvolutionWebhook(deviceId: string, webhookUrl: string) 
   });
 }
 
+
 export function getWhatsAppSessionStatus(deviceId: string) {
-  const device = sessions.get(deviceId); // Check legacy Map first
-  if (device) return device.status;
-  return "CONNECTED"; // Fallback for Evolution
+  const session = sessions.get(deviceId); // Check legacy Map first
+  if (session) return session.status;
+  return null; // Return null so the caller falls back to DB or handles it
 }
 
 export async function syncContacts(deviceId: string) { return true; }
