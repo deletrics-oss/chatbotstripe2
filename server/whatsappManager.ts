@@ -102,14 +102,19 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
     const device = await storage.getDevice(deviceId);
     if (!device) throw new Error("Device not found");
 
-    // Step 1: Create Instance (without QR first to avoid "reading 'state'" error)
-    await evolutionRequest('/instance/create', 'POST', {
+    const payload: any = {
       instanceName: deviceId,
       token: deviceId,
-      number: device.phoneNumber || "",
       qrcode: false,
       integration: "WHATSAPP-BAILEYS"
-    });
+    };
+
+    if (device.phoneNumber && device.phoneNumber.length > 5) {
+      payload.number = device.phoneNumber;
+    }
+
+    // Step 1: Create Instance (without QR first to avoid "reading 'state'" error)
+    await evolutionRequest('/instance/create', 'POST', payload);
 
     // Step 2: Trigger Connection/QR Generation immediately
     await evolutionRequest(`/instance/connect/${deviceId}`, 'GET');
