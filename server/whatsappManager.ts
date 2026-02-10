@@ -115,11 +115,21 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
 
     console.log(`[Evolution] Creating instance with payload:`, JSON.stringify(payload));
 
-    // Step 1: Create Instance (without QR first to avoid "reading 'state'" error)
-    const createResponse = await evolutionRequest('/instance/create', 'POST', payload);
-    console.log(`[Evolution] Create Response:`, JSON.stringify(createResponse));
+    // Step 1: Create Instance
+    try {
+      const createResponse = await evolutionRequest('/instance/create', 'POST', payload);
+      console.log(`[Evolution] Create Response:`, JSON.stringify(createResponse));
+    } catch (error: any) {
+      if (error && (error.message?.includes('Forbidden') || error.data?.error?.includes('Forbidden'))) {
+        console.log(`[Evolution] Instance ${deviceId} likely already exists (Forbidden), skipping creation and proceeding to connect...`);
+      } else {
+        console.error(`[Evolution] Creation failed:`, error);
+        throw error;
+      }
+    }
 
     // Step 2: Trigger Connection/QR Generation immediately
+    console.log(`[Evolution] Triggering connection for ${deviceId}...`);
     await evolutionRequest(`/instance/connect/${deviceId}`, 'GET');
 
     await storage.updateDevice(deviceId, {
@@ -242,10 +252,18 @@ export async function getWhatsAppQRCode(deviceId: string): Promise<string | null
 
   if (device.integrationType === 'evolution') {
     try {
+      console.log(`[Evolution] connect() called for ${deviceId}`);
       const data = await evolutionRequest(`/instance/connect/${deviceId}`);
-      if (data.base64) {
+      console.log(`[Evolution] connect() response for ${deviceId}:`, JSON.stringify(data || {}).substring(0, 500));
+
+      if (data && data?.base64) {
+        console.log(`[Evolution] QR Code received for ${deviceId}`);
         await storage.updateDevice(deviceId, { qrCode: data.base64, connectionStatus: 'qr_ready' });
         return data.base64;
+      } else if (data && data?.instance?.state === 'open') {
+        console.log(`[Evolution] Instance ${deviceId} is already OPEN`);
+        await storage.updateDevice(deviceId, { connectionStatus: 'connected', qrCode: null });
+        return null;
       }
       return null;
     } catch (error: any) {
