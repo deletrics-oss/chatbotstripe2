@@ -110,9 +110,10 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
       integration: "WHATSAPP-BAILEYS"
     };
 
-    if (device.phoneNumber && device.phoneNumber.length > 5) {
-      payload.number = device.phoneNumber;
-    }
+    // REMOVED: Do not send number for QR code flow to avoid validation errors
+    // if (device.phoneNumber && device.phoneNumber.length > 5) {
+    //   payload.number = device.phoneNumber;
+    // }
 
     console.log(`[Evolution] Creating instance with payload:`, JSON.stringify(payload));
 
