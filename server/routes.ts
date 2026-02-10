@@ -659,6 +659,21 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
     }
   });
 
+  // Admin: Check Evolution API Status
+  app.get('/api/admin/evolution-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+
+      const status = await whatsappManager.checkEvolutionStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ status: 'ERROR', error: String(error) });
+    }
+  });
+
   app.post('/api/admin/promote', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
@@ -1427,7 +1442,7 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
         return res.status(403).json({ message: "Unauthorized: You don't own this device" });
       }
 
-      const qrCode = whatsappManager.getWhatsAppQRCode(req.params.id);
+      const qrCode = await whatsappManager.getWhatsAppQRCode(req.params.id);
       const status = whatsappManager.getWhatsAppSessionStatus(req.params.id);
 
       res.json({ qrCode, status });

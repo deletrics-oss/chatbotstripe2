@@ -16,6 +16,8 @@ export interface LogicJson {
   rules: LogicRule[];
   default_reply?: string;
   pause_bot_after_reply?: boolean;
+  fallback_to_ai?: boolean;
+  ai_sys_prompt?: string;
 }
 
 export interface ExecutionResult {

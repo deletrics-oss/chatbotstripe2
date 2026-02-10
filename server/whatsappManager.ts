@@ -10,7 +10,7 @@ export { MessageMedia };
 
 // Evolution API Configuration
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://127.0.0.1:8084";
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "";
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "chatbot_premium_key_2026";
 
 // Legacy Sessions Storage
 const sessions = new Map<string, {
@@ -408,9 +408,11 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
   if (result.reply === "Desculpe, não entendi sua mensagem." && (logic.logicJson as LogicJson).fallback_to_ai) {
     const ai = getAI();
     if (ai) {
-      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const aiResult = await model.generateContent(messageBody);
-      const aiReply = aiResult.response.text();
+      const aiResult = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: messageBody
+      });
+      const aiReply = aiResult.text || "";
       await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
       await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
       return;
