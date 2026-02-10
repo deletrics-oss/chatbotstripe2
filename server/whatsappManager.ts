@@ -48,8 +48,9 @@ async function evolutionRequest(endpoint: string, method: string = 'GET', body: 
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || `Evolution API error: ${response.statusText}`);
+        const err = await response.json();
+        const errorMsg = typeof err.message === 'string' ? err.message : JSON.stringify(err);
+        throw new Error(errorMsg || `Evolution API error: ${response.statusText}`);
       }
       return await response.json();
     } else {
