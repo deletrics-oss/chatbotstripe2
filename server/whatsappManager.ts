@@ -113,8 +113,11 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
       payload.number = device.phoneNumber;
     }
 
+    console.log(`[Evolution] Creating instance with payload:`, JSON.stringify(payload));
+
     // Step 1: Create Instance (without QR first to avoid "reading 'state'" error)
-    await evolutionRequest('/instance/create', 'POST', payload);
+    const createResponse = await evolutionRequest('/instance/create', 'POST', payload);
+    console.log(`[Evolution] Create Response:`, JSON.stringify(createResponse));
 
     // Step 2: Trigger Connection/QR Generation immediately
     await evolutionRequest(`/instance/connect/${deviceId}`, 'GET');
