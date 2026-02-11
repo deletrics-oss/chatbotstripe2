@@ -685,10 +685,10 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
   // Admin: Check Evolution API Status
   app.get('/api/admin/evolution-status', isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.id);
-      if (!user?.isAdmin) {
-        return res.status(403).json({ message: "Acesso negado" });
-      }
+      // Allow any authenticated user to check status
+      // if (!user?.isAdmin) {
+      //   return res.status(403).json({ message: "Acesso negado" });
+      // }
 
       const status = await whatsappManager.checkEvolutionStatus();
       res.json(status);
@@ -1763,7 +1763,9 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
       const data = insertLogicConfigSchema.parse({
         ...req.body,
         userId,
+        userId,
         logicType: req.body.logicType || 'json',
+        isActive: true, // Force active by default
       });
 
       const logic = await storage.createLogic(data);
@@ -1774,6 +1776,24 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
       }
       console.error("Error creating logic:", error);
       res.status(500).json({ message: "Failed to create logic" });
+    }
+  });
+
+  app.post('/api/logics/activate-all', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const logics = await storage.getLogics(userId);
+      let count = 0;
+      for (const logic of logics) {
+        if (!logic.isActive) {
+          await storage.updateLogic(logic.id, { isActive: true });
+          count++;
+        }
+      }
+      res.json({ message: `Activated ${count} logics`, count });
+    } catch (error) {
+      console.error("Error activating logics:", error);
+      res.status(500).json({ message: "Failed to activate logics" });
     }
   });
 
