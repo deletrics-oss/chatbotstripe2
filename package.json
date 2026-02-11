@@ -88,6 +88,7 @@
     "whatsapp-web.js": "github:DROISD123/whatsapp-web.js#main",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
+    "nanoid": "^3.3.8",
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"
   },

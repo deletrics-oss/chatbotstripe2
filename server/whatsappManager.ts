@@ -455,11 +455,11 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
 
           // Fetch Knowledge Base items to enrich AI context
           try {
-            const knowledgeItems = await storage.getKnowledgeItems(logic.userId);
-            const activeKnowledge = knowledgeItems.filter(k => k.isActive);
+            const knowledgeItems = await storage.getKnowledgeBase(logic.userId);
+            const activeKnowledge = (knowledgeItems as any[]).filter(k => k.isActive);
             if (activeKnowledge.length > 0) {
               systemInstruction += `\n\nCONHECIMENTO ADICIONAL:\n`;
-              activeKnowledge.forEach(item => {
+              activeKnowledge.forEach((item: any) => {
                 systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
               });
             }
@@ -693,14 +693,16 @@ export async function syncContacts(deviceId: string) {
       return false;
     }
 
+    // Optimization: fetch conversations once
+    const conversations = await storage.getConversations(deviceId);
+    const existingPhones = new Set(conversations.map(c => c.contactPhone));
+
     for (const contact of contacts) {
+      if (!contact.id) continue;
       const phone = contact.id.split('@')[0];
       const name = contact.name || contact.pushname || phone;
 
-      const conversations = await storage.getConversations(deviceId);
-      const existing = conversations.find(c => c.contactPhone === phone);
-
-      if (!existing) {
+      if (!existingPhones.has(phone)) {
         await storage.createConversation({
           deviceId,
           contactName: name,
@@ -709,6 +711,7 @@ export async function syncContacts(deviceId: string) {
           isActive: true,
           unreadCount: 0
         });
+        existingPhones.add(phone);
       }
     }
     return true;

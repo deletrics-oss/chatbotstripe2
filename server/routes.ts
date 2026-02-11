@@ -1789,7 +1789,6 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
       const data = insertLogicConfigSchema.parse({
         ...req.body,
         userId,
-        userId,
         logicType: req.body.logicType || 'json',
         isActive: true, // Force active by default
       });
