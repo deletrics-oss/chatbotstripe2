@@ -306,7 +306,7 @@ Maintain the original format as much as possible unless asked to change it.
 ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the edited text, no explanations.'}`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         contents: systemPrompt,
       });
 
@@ -395,7 +395,7 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
             console.log(`[AI Extract] Processing ${mimeType}, size: ${(estimatedSize / 1024).toFixed(1)}KB`);
 
             const response = await ai.models.generateContent({
-              model: "gemini-2.0-flash-exp",
+              model: "gemini-2.0-flash",
               contents: [{
                 parts: [
                   { text: prompt },
@@ -439,7 +439,7 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
               console.log(`[AI Extract] Fetched ${contentType}, size: ${(arrayBuffer.byteLength / 1024).toFixed(1)}KB`);
 
               const response = await ai.models.generateContent({
-                model: "gemini-2.0-flash-exp",
+                model: "gemini-2.0-flash",
                 contents: [{
                   parts: [
                     { text: prompt },
@@ -488,7 +488,7 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
           const prompt = `Extract menu items from this text and format them nicely with emojis and prices:\n\n${pageText.slice(0, 10000)}\n\n${instruction || 'Format as a WhatsApp message with emojis.'}`;
 
           const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
+            model: "gemini-2.0-flash",
             contents: prompt,
           });
 
@@ -506,7 +506,7 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
         const prompt = `Format this menu/list nicely with emojis and proper structure:\n\n${sourceContent}\n\n${instruction || 'Format as a WhatsApp message with emojis.'}`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash-exp",
+          model: "gemini-2.0-flash",
           contents: prompt,
         });
 
@@ -1157,7 +1157,7 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       const systemPrompt = `
 Você é o "Guru do Sistema", um assistente virtual especializado nesta plataforma SaaS de Chatbots para WhatsApp.
@@ -1261,7 +1261,7 @@ Mantenha as respostas curtas e objetivas.
       if (!apiKey) return res.status(500).json({ error: "API Key não configurada" });
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       const systemPrompt = `
 Você é um Arquiteto de Chatbots Especialista.
@@ -1880,7 +1880,7 @@ Diretrizes para uma lógica ROBUSTA:
 Responda APENAS com o JSON válido.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
@@ -1947,7 +1947,7 @@ Diretrizes para uma lógica ROBUSTA:
 Responda APENAS com o JSON válido.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
@@ -2709,7 +2709,7 @@ A mensagem deve ser amigável e adequada para envio em massa.
 Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         config: {
           systemInstruction: systemPrompt,
         },
@@ -2932,7 +2932,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
                   // ==================================
 
                   const aiResponse = await ai.models.generateContent({
-                    model: "gemini-2.0-flash-exp",
+                    model: "gemini-2.0-flash",
                     config: { systemInstruction },
                     contents: message,
                   });
@@ -3333,7 +3333,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       `;
 
       const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
@@ -3428,7 +3428,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       `;
 
       const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
@@ -3530,7 +3530,7 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       Responda APENAS com o texto da mensagem.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         config: {
           systemInstruction: systemPrompt,
         },
