@@ -65,11 +65,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Evolution API Webhook (Public)
   app.post("/api/webhooks/evolution", async (req, res) => {
     try {
+      const event = req.body?.event || 'unknown';
+      const instance = req.body?.instance || 'unknown';
+      console.log(`[Webhook] Received event: ${event} for instance: ${instance}`);
+      res.status(200).send("OK"); // Always respond 200 fast
       await whatsappManager.handleEvolutionWebhook(req.body);
-      res.status(200).send("OK");
     } catch (error) {
       console.error("[Webhook Error]:", error);
-      res.status(500).send("Error");
+      if (!res.headersSent) res.status(500).send("Error");
     }
   });
 
@@ -1562,7 +1565,7 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
 
       // Evolution API Request to set Webhook
       const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://127.0.0.1:8084";
-      const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "";
+      const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "chatbot_premium_key_2026";
 
       await fetch(`${EVOLUTION_API_URL}/webhook/set/${deviceId}`, {
         method: 'POST',

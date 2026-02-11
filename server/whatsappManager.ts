@@ -478,11 +478,15 @@ export async function handleEvolutionWebhook(data: any) {
   const event = data.event;
   const instance = data.instance;
 
+  console.log(`[Webhook Handler] Event: ${event}, Instance: ${instance}`);
+
   if (event === 'MESSAGES_UPSERT') {
     const message = data.data;
     const deviceId = instance;
-    const fromMe = message.key.fromMe;
-    const remoteJid = message.key.remoteJid;
+    const fromMe = message?.key?.fromMe;
+    const remoteJid = message?.key?.remoteJid;
+
+    console.log(`[Webhook] MESSAGE_UPSERT from ${remoteJid}, fromMe: ${fromMe}`);
 
     if (fromMe || (remoteJid && remoteJid.includes('@g.us'))) return;
 
@@ -497,18 +501,21 @@ export async function handleEvolutionWebhook(data: any) {
       mediaType = message.message?.imageMessage ? 'image/jpeg' : message.message?.audioMessage ? 'audio/mpeg' : 'video/mp4';
     }
 
+    console.log(`[Webhook] Processing message from ${contactNumber}: "${messageBody.substring(0, 50)}"`);
     await saveMessageToDb(deviceId, contactNumber, messageBody, 'incoming', false, mediaUrl, mediaType);
     await processIncomingMessage(deviceId, contactNumber, messageBody);
 
   } else if (event === 'CONNECTION_UPDATE') {
-    const status = data.data.status;
+    const status = data.data?.state || data.data?.status;
+    console.log(`[Webhook] CONNECTION_UPDATE: ${status} for instance ${instance}`);
     if (status === 'open') {
       await storage.updateDevice(instance, { connectionStatus: 'connected', qrCode: null });
     } else if (status === 'close' || status === 'refused') {
       await storage.updateDevice(instance, { connectionStatus: 'disconnected' });
     }
   } else if (event === 'QRCODE_UPDATED') {
-    const qr = data.data.qrcode?.base64;
+    const qr = data.data?.qrcode?.base64;
+    console.log(`[Webhook] QRCODE_UPDATED for ${instance}, has QR: ${!!qr}`);
     if (qr) {
       await storage.updateDevice(instance, { qrCode: qr, connectionStatus: 'qr_ready' });
     }
