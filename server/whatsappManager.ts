@@ -134,6 +134,16 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
     console.log(`[Evolution] Triggering connection for ${deviceId}...`);
     await evolutionRequest(`/instance/connect/${deviceId}`, 'GET');
 
+    // Step 3: Auto-configure webhook so Evolution sends events to our chatbot
+    try {
+      const webhookUrl = `https://chatbot.deletrics.site/api/webhooks/evolution`;
+      console.log(`[Evolution] Setting webhook for ${deviceId}: ${webhookUrl}`);
+      await setEvolutionWebhook(deviceId, webhookUrl);
+      console.log(`[Evolution] ✅ Webhook configured successfully for ${deviceId}`);
+    } catch (webhookError) {
+      console.error(`[Evolution] ⚠️ Failed to set webhook (non-fatal):`, webhookError);
+    }
+
     await storage.updateDevice(deviceId, {
       connectionStatus: 'connecting',
       instanceName: deviceId,
@@ -253,6 +263,11 @@ export async function getWhatsAppQRCode(deviceId: string): Promise<string | null
   if (!device) return null;
 
   if (device.integrationType === 'evolution') {
+    // If already connected, don't poll Evolution API
+    if (device.connectionStatus === 'connected') {
+      return null;
+    }
+
     try {
       console.log(`[Evolution] connect() called for ${deviceId}`);
       const data = await evolutionRequest(`/instance/connect/${deviceId}`);
