@@ -111,4 +111,16 @@ export default async function runApp(
       log(`Erro no servidor: ${error.message}`, "express");
     }
   });
+
+  // Global Error Handlers to prevent crash loops
+  process.on('uncaughtException', (err) => {
+    log(`CRITICAL: Uncaught Exception: ${err.message}`, "error");
+    console.error(err.stack);
+    // In production, we keep the process alive but log the error
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    log(`CRITICAL: Unhandled Rejection at: ${promise} reason: ${reason}`, "error");
+    // In production, we keep the process alive
+  });
 }

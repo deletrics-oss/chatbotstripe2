@@ -599,6 +599,12 @@ export async function handleEvolutionWebhook(data: any) {
 
     console.log(`[Webhook] MESSAGE_UPSERT from ${remoteJid}, fromMe: ${fromMe}`);
 
+    const device = await storage.getDevice(deviceId);
+    if (!device) {
+      console.warn(`[Webhook] ⚠️ Received message for unknown device ${deviceId}. Ignoring.`);
+      return;
+    }
+
     if (fromMe || (remoteJid && remoteJid.includes('@g.us'))) return;
 
     const contactNumber = remoteJid ? remoteJid.split('@')[0] : "";
@@ -619,6 +625,13 @@ export async function handleEvolutionWebhook(data: any) {
   } else if (event === 'CONNECTION_UPDATE') {
     const status = data.data?.state || data.data?.status;
     console.log(`[Webhook] CONNECTION_UPDATE: ${status} for instance ${instance}`);
+
+    const device = await storage.getDevice(instance);
+    if (!device) {
+      console.warn(`[Webhook] ⚠️ CONNECTION_UPDATE for unknown device ${instance}`);
+      return;
+    }
+
     if (status === 'open') {
       await storage.updateDevice(instance, { connectionStatus: 'connected', qrCode: null });
       // Auto-configure webhook when device connects
@@ -631,13 +644,17 @@ export async function handleEvolutionWebhook(data: any) {
         console.error(`[Webhook] ⚠️ Failed to auto-set webhook for ${instance}:`, err);
       }
     } else if (status === 'close' || status === 'refused') {
-      await storage.updateDevice(instance, { connectionStatus: 'disconnected' });
+      await storage.updateDevice(instance, { connectionStatus: 'disconnected', qrCode: null });
     }
   } else if (event === 'QRCODE_UPDATED') {
-    const qr = data.data?.qrcode?.base64;
+    const qr = data.data?.qrcode;
     console.log(`[Webhook] QRCODE_UPDATED for ${instance}, has QR: ${!!qr}`);
-    if (qr) {
-      await storage.updateDevice(instance, { qrCode: qr, connectionStatus: 'qr_ready' });
+
+    const device = await storage.getDevice(instance);
+    if (device) {
+      await storage.updateDevice(instance, { qrCode: qr, connectionStatus: 'connecting' });
+    } else {
+      console.warn(`[Webhook] ⚠️ QRCODE_UPDATED for unknown device ${instance}`);
     }
   }
 }
