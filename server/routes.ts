@@ -1594,6 +1594,20 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
     }
   });
 
+  app.post('/api/devices/:id/contacts-fetch', isAuthenticated, async (req: any, res) => {
+    try {
+      const deviceId = req.params.id;
+      console.log(`[Route] Fetching contacts for ${deviceId}...`);
+      const contacts = await whatsappManager.getEvolutionContacts(deviceId);
+
+      // Send raw contacts back for now; could store them later if needed
+      res.json({ success: true, count: Array.isArray(contacts) ? contacts.length : 0, contacts });
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      res.status(500).json({ message: "Failed to fetch contacts" });
+    }
+  });
+
   app.post('/api/devices/:id/toggle-sdr', isAuthenticated, async (req: any, res) => {
     try {
       const { isGlobalSdr } = req.body;

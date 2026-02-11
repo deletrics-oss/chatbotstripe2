@@ -144,6 +144,22 @@ async function createEvolutionSession(deviceId: string): Promise<void> {
       console.error(`[Evolution] ⚠️ Failed to set webhook (non-fatal):`, webhookError);
     }
 
+    // Step 4: Auto-configure settings (Reject Calls, Ignore Groups)
+    try {
+      console.log(`[Evolution] Configuring settings for ${deviceId}...`);
+      await setEvolutionSettings(deviceId, {
+        rejectCall: true,      // Reject calls automatically
+        msgCall: "Este número não aceita chamadas. Por favor, envie uma mensagem de texto.",
+        groupsIgnore: true,    // Ignore group messages
+        alwaysOnline: true,    // Show as always online
+        readMessages: false,   // Don't auto-read messages
+        readStatus: false      // Don't auto-view statuses
+      });
+      console.log(`[Evolution] ✅ Settings configured for ${deviceId}`);
+    } catch (settingsError) {
+      console.error(`[Evolution] ⚠️ Failed to configure settings (non-fatal):`, settingsError);
+    }
+
     await storage.updateDevice(deviceId, {
       connectionStatus: 'connecting',
       instanceName: deviceId,
@@ -585,6 +601,20 @@ export async function setEvolutionWebhook(deviceId: string, webhookUrl: string) 
   });
   console.log(`[Evolution] Webhook set result for ${deviceId}:`, JSON.stringify(result));
   return result;
+}
+
+export async function setEvolutionSettings(deviceId: string, settings: any) {
+  console.log(`[Evolution] Setting settings for ${deviceId}:`, JSON.stringify(settings));
+  // Evolution v2.3.7 Settings Endpoint
+  return await evolutionRequest(`/chat/settings/${deviceId}`, 'POST', settings);
+}
+
+export async function getEvolutionContacts(deviceId: string) {
+  console.log(`[Evolution] Fetching contacts for ${deviceId}...`);
+  // Evolution v2.3.7 Contacts Endpoint
+  const contacts = await evolutionRequest(`/chat/findContacts/${deviceId}`, 'GET');
+  console.log(`[Evolution] Fetched ${Array.isArray(contacts) ? contacts.length : 0} contacts for ${deviceId}`);
+  return contacts;
 }
 
 
