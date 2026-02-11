@@ -454,11 +454,12 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
           }
 
           // Execute Gemini
-          const aiResult = await ai.models.generateContent({
+          const request: any = {
             model: "gemini-2.0-flash",
-            systemInstruction: { parts: [{ text: systemInstruction }] },
+            config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
             contents: [{ role: "user", parts: [{ text: messageBody }] }]
-          });
+          };
+          const aiResult = await ai.models.generateContent(request);
           const aiReply = aiResult.text || "";
 
           console.log(`[Bot] 🤖 AI replied: "${aiReply.substring(0, 80)}"`);
