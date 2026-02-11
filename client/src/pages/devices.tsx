@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson, RotateCw } from "lucide-react";
+import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson, RotateCw, Activity } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { WhatsappDevice, LogicConfig } from "@shared/schema";
+
+function EvolutionStatusBadge() {
+  const { data: status, isLoading } = useQuery({
+    queryKey: ['/api/admin/evolution-status'],
+    retry: false,
+    refetchInterval: 30000
+  });
+
+  if (isLoading) return <Skeleton className="h-5 w-24 rounded-full" />;
+
+  // If user is not admin or error, we might not get data, handle gracefully
+  if (!status || status.error) {
+    if (status?.error?.includes("403")) return null; // Hide for non-admins
+    return (
+      <Badge variant="destructive" className="gap-1 h-5 text-[10px]" title={status?.error || "Erro de conexão"}>
+        <WifiOff className="w-3 h-3" /> API Offline
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="gap-1 h-5 text-[10px] bg-green-500/10 text-green-600 border-green-200">
+      <Activity className="w-3 h-3" /> API Online (v{status.version})
+    </Badge>
+  );
+}
 
 export default function Devices() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -186,7 +212,10 @@ export default function Devices() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">Dispositivos WhatsApp</h1>
-          <p className="text-muted-foreground mt-1">Gerencie suas conexões WhatsApp</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-muted-foreground">Gerencie suas conexões WhatsApp</p>
+            <EvolutionStatusBadge />
+          </div>
         </div>
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
