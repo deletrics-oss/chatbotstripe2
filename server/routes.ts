@@ -1762,31 +1762,13 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Free users can only create 1 logic
-      if (user.currentPlan === 'free') {
-        const existingLogics = await storage.getLogics(userId);
-        if (existingLogics.length >= 1) {
-          return res.status(403).json({
-            message: "Plano Free permite apenas 1 lógica. Faça upgrade para criar mais."
-          });
-        }
-      }
+      // Note: plan-based restrictions removed - all users can create AI logics
 
-      // Parse and validate data with schema
       const data = insertLogicConfigSchema.parse({
         ...req.body,
         userId,
-        // Ensure logicType defaults to 'json' if not provided
         logicType: req.body.logicType || 'json',
       });
-
-      // Enforce plan-based feature flags: Only Full plan can use AI behaviors
-      // This check happens AFTER parsing to ensure logicType is always set
-      if (data.logicType === 'ai' && (user.currentPlan !== 'full' && !user.isAdmin)) {
-        return res.status(403).json({
-          message: "Lógicas com IA Gemini disponíveis apenas no plano Full. Faça upgrade para acessar este recurso."
-        });
-      }
 
       const logic = await storage.createLogic(data);
       res.json(logic);
@@ -1812,18 +1794,7 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
         return res.status(403).json({ message: "Unauthorized: You don't own this logic" });
       }
 
-      // Determine the final logicType (use new value if provided, otherwise keep existing)
-      const finalLogicType = req.body.logicType !== undefined ? req.body.logicType : logic.logicType;
-
-      // Enforce plan-based feature flags: Only Full plan can use AI behaviors
-      if (finalLogicType === 'ai') {
-        const user = await storage.getUser(userId);
-        if (!user || (user.currentPlan !== 'full' && !user.isAdmin)) {
-          return res.status(403).json({
-            message: "Lógicas com IA Gemini disponíveis apenas no plano Full. Faça upgrade para acessar este recurso."
-          });
-        }
-      }
+      // Note: plan-based restrictions removed - all users can use AI logics
 
       const updated = await storage.updateLogic(req.params.id, req.body);
       res.json(updated);
