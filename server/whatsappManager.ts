@@ -383,6 +383,7 @@ async function sendEvolutionMessage(deviceId: string, number: string, text: stri
     }
     return true;
   } catch (error) {
+    console.error(`[Evolution] ❌ Error sending message to ${number}:`, error);
     return false;
   }
 }
@@ -413,15 +414,26 @@ async function sendLegacyMessage(deviceId: string, number: string, text: string,
 
 
 export async function processIncomingMessage(deviceId: string, contactNumber: string, messageBody: string) {
+  console.log(`[Bot] processIncomingMessage called: device=${deviceId}, from=${contactNumber}, msg="${messageBody.substring(0, 50)}"`);
+
   const device = await storage.getDevice(deviceId);
-  if (!device || !device.activeLogicId || device.isPaused) return;
+  if (!device) { console.log(`[Bot] ❌ Device ${deviceId} not found`); return; }
+  if (!device.activeLogicId) { console.log(`[Bot] ❌ Device ${deviceId} has no activeLogicId set — go to Dispositivos and activate a logic!`); return; }
+  if (device.isPaused) { console.log(`[Bot] ⏸️ Device ${deviceId} is PAUSED — unpause to start responding`); return; }
+
+  console.log(`[Bot] ✅ Device has activeLogicId: ${device.activeLogicId}, isPaused: ${device.isPaused}`);
 
   const logic = await storage.getLogic(device.activeLogicId);
-  if (!logic?.isActive || !logic.logicJson) return;
+  if (!logic) { console.log(`[Bot] ❌ Logic ${device.activeLogicId} not found in database`); return; }
+  if (!logic.isActive) { console.log(`[Bot] ❌ Logic ${logic.id} is NOT active (isActive=false)`); return; }
+  if (!logic.logicJson) { console.log(`[Bot] ❌ Logic ${logic.id} has no logicJson`); return; }
 
+  console.log(`[Bot] 🧠 Executing logic: "${logic.name}" against message: "${messageBody.substring(0, 50)}"`);
   const result = executeLogic(messageBody, logic.logicJson as LogicJson);
+  console.log(`[Bot] 📝 Logic result: "${result.reply.substring(0, 80)}"`);
 
   if (result.reply === "Desculpe, não entendi sua mensagem." && (logic.logicJson as LogicJson).fallback_to_ai) {
+    console.log(`[Bot] 🤖 Falling back to AI (Gemini)`);
     const ai = getAI();
     if (ai) {
       const aiResult = await ai.models.generateContent({
@@ -429,13 +441,16 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
         contents: messageBody
       });
       const aiReply = aiResult.text || "";
+      console.log(`[Bot] 🤖 AI replied: "${aiReply.substring(0, 80)}"`);
       await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
       await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
       return;
     }
   }
 
-  await sendWhatsAppMessage(deviceId, contactNumber, result.reply, result.mediaUrl);
+  console.log(`[Bot] 📤 Sending reply to ${contactNumber}: "${result.reply.substring(0, 80)}"`);
+  const sent = await sendWhatsAppMessage(deviceId, contactNumber, result.reply, result.mediaUrl);
+  console.log(`[Bot] ${sent ? '✅' : '❌'} Message ${sent ? 'sent' : 'FAILED'} to ${contactNumber}`);
   await saveMessageToDb(deviceId, contactNumber, result.reply, 'outgoing', true);
 }
 
