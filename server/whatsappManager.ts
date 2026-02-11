@@ -566,20 +566,22 @@ export async function handleEvolutionWebhook(data: any) {
 export async function setEvolutionWebhook(deviceId: string, webhookUrl: string) {
   console.log(`[Evolution] Setting webhook for ${deviceId} -> ${webhookUrl}`);
   const result = await evolutionRequest(`/webhook/set/${deviceId}`, 'POST', {
-    url: webhookUrl,
-    enabled: true,
-    webhook_by_events: false,
-    events: [
-      "MESSAGES_UPSERT",
-      "MESSAGES_UPDATE",
-      "SEND_MESSAGE",
-      "CONTACTS_UPDATE",
-      "CONNECTION_UPDATE",
-      "QRCODE_UPDATED",
-      "CHATS_UPDATE",
-      "CHATS_UPSERT",
-      "PRESENCE_UPDATE"
-    ]
+    webhook: {
+      url: webhookUrl,
+      enabled: true,
+      webhook_by_events: false,
+      events: [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "SEND_MESSAGE",
+        "CONTACTS_UPDATE",
+        "CONNECTION_UPDATE",
+        "QRCODE_UPDATED",
+        "CHATS_UPDATE",
+        "CHATS_UPSERT",
+        "PRESENCE_UPDATE"
+      ]
+    }
   });
   console.log(`[Evolution] Webhook set result for ${deviceId}:`, JSON.stringify(result));
   return result;
