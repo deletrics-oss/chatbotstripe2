@@ -472,7 +472,6 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
             model: "gemini-2.0-flash",
             config: {
               systemInstruction: {
-                role: 'system',
                 parts: [{ text: systemInstruction }]
               }
             },

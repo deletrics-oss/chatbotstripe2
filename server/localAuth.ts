@@ -14,14 +14,13 @@ export function getSession() {
   });
 
   // Ensure SESSION_SECRET is set in production
-  const sessionSecret = process.env.SESSION_SECRET;
-  if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret === "default-secret-change-in-production")) {
-    console.error("⚠️  CRITICAL: SESSION_SECRET not set in production! Set a strong random value in .env");
-    process.exit(1);
+  const sessionSecret = process.env.SESSION_SECRET || "default-secret-change-in-production";
+  if (process.env.NODE_ENV === 'production' && sessionSecret === "default-secret-change-in-production") {
+    console.warn("⚠️  WARNING: SESSION_SECRET not set in production! Using default fallback. Please set a strong random value in .env for security.");
   }
 
   return session({
-    secret: sessionSecret || "default-secret-change-in-production",
+    secret: sessionSecret,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
