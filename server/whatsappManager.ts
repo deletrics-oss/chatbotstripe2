@@ -446,11 +446,21 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
           // Load system prompt from file if available
           const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
           let systemInstruction = "Você é um assistente virtual útil.";
+          let loadedFrom = "default";
+
+          const logicJsonProp = logic.logicJson as any;
 
           if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
             systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
-          } else if ((logic.logicJson as any)?.ai_sys_prompt) {
-            systemInstruction = (logic.logicJson as any).ai_sys_prompt;
+            loadedFrom = "file (ia-prompt.txt)";
+          } else if (logicJsonProp?.ai_sys_prompt) {
+            systemInstruction = logicJsonProp.ai_sys_prompt;
+            loadedFrom = "JSON (ai_sys_prompt)";
+          }
+
+          console.log(`[Bot] 📝 Instruction loaded from ${loadedFrom}. Length: ${systemInstruction.length}`);
+          if (systemInstruction.length < 50) {
+            console.log(`[Bot] ⚠️ Warning: Instruction seems too short. Logic props:`, Object.keys(logicJsonProp || {}));
           }
 
           // Fetch Knowledge Base items to enrich AI context
@@ -458,6 +468,7 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
             const knowledgeItems = await storage.getKnowledgeBase(logic.userId);
             const activeKnowledge = (knowledgeItems as any[]).filter(k => k.isActive);
             if (activeKnowledge.length > 0) {
+              console.log(`[Bot] 📚 Adding ${activeKnowledge.length} knowledge items to context`);
               systemInstruction += `\n\nCONHECIMENTO ADICIONAL:\n`;
               activeKnowledge.forEach((item: any) => {
                 systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
@@ -662,9 +673,9 @@ export async function setEvolutionSettings(deviceId: string, settings: any) {
 }
 export async function getEvolutionContacts(deviceId: string) {
   console.log(`[Evolution] Fetching contacts for ${deviceId}...`);
-  // Evolution v2.x Contacts Endpoint: /contact/fetchInstancesContacts/:instance
+  // Evolution v2.x Contacts Endpoint: /contact/fetchContacts/:instance
   try {
-    const contacts = await evolutionRequest(`/contact/fetchInstancesContacts/${deviceId}`, 'GET');
+    const contacts = await evolutionRequest(`/contact/fetchContacts/${deviceId}`, 'GET');
     console.log(`[Evolution] Fetched contacts for ${deviceId}:`, Array.isArray(contacts) ? contacts.length : 'Not an array');
     return contacts;
   } catch (err) {

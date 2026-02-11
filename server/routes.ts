@@ -3355,6 +3355,8 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
         interface LogicJson {
           default_reply: string;
           pause_bot_after_reply?: boolean;
+          fallback_to_ai?: boolean; // Se deve usar IA quando nenhuma keyword bater
+          ai_sys_prompt?: string; // A persona/prompt do bot
           rules: {
             keywords: string[];
             reply: string;
@@ -3364,6 +3366,8 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
             set_conversation_state?: string; // Opcional, para fluxos complexos
           }[];
         }
+
+        IMPORTANTE: Se a LÓGICA ATUAL já contiver 'ai_sys_prompt' ou 'fallback_to_ai', MANTENHA-OS no JSON de saída, a menos que o usuário peça explicitamente para mudar a persona.
 
         Responda APENAS com o JSON válido e formatado.
       `;
