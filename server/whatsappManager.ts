@@ -478,12 +478,12 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
             console.error(`[Bot] ⚠️ Error fetching knowledge base for AI:`, kbErr);
           }
 
-          // Execute Gemini
+          // Execute Gemini with a safety instruction for brevity
           const request: any = {
             model: "gemini-2.0-flash",
             config: {
               systemInstruction: {
-                parts: [{ text: systemInstruction }]
+                parts: [{ text: systemInstruction + "\n\nIMPORTANTE: Seja extremamente breve e direto. Responda como se estivesse no WhatsApp. Use no máximo 2-3 frases." }]
               }
             },
             contents: [{ role: "user", parts: [{ text: messageBody }] }]
@@ -511,16 +511,24 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
   const result = executeLogic(messageBody, logic.logicJson as LogicJson);
   console.log(`[Bot] 📝 Logic result: "${result.reply.substring(0, 80)}"`);
 
-  if (result.reply === "Desculpe, não entendi sua mensagem." && (logic.logicJson as LogicJson).fallback_to_ai) {
+  if (result.reply === "Desculpe, não entendi sua mensagem." && (logic.logicJson as any).fallback_to_ai) {
     console.log(`[Bot] 🤖 Falling back to AI (Gemini)`);
     const ai = getAI();
     if (ai) {
+      const logicJsonProp = logic.logicJson as any;
+      let systemInstruction = logicJsonProp.ai_sys_prompt || "Você é um assistente virtual útil.";
+
       const aiResult = await ai.models.generateContent({
         model: "gemini-2.0-flash",
-        contents: messageBody
+        config: {
+          systemInstruction: {
+            parts: [{ text: systemInstruction + "\n\nIMPORTANTE: Seja extremamente breve e direto. Responda como se estivesse no WhatsApp. Use no máximo 2-3 frases." }]
+          }
+        },
+        contents: [{ role: "user", parts: [{ text: messageBody }] }]
       });
       const aiReply = aiResult.text || "";
-      console.log(`[Bot] 🤖 AI replied: "${aiReply.substring(0, 80)}"`);
+      console.log(`[Bot] 🤖 AI Fallback replied: "${aiReply.substring(0, 80)}"`);
       await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
       await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
       return;

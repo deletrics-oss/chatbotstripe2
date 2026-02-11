@@ -112,11 +112,10 @@ export default async function runApp(
     }
   });
 
-  // Global Error Handlers to prevent crash loops
+  // Global Safety Nets to prevent crash loops on VPS
   process.on('uncaughtException', (err) => {
-    log(`CRITICAL: Uncaught Exception: ${err.message}`, "error");
+    log(`🛡️ SAFETY NET: Uncaught Exception: ${err.message}`, "error");
     console.error(err.stack);
-    // In production, we keep the process alive but log the error
   });
 
   process.on('unhandledRejection', (reason, promise) => {
