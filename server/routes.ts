@@ -1594,14 +1594,40 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
     }
   });
 
+
   app.post('/api/devices/:id/contacts-fetch', isAuthenticated, async (req: any, res) => {
     try {
       const deviceId = req.params.id;
       console.log(`[Route] Fetching contacts for ${deviceId}...`);
       const contacts = await whatsappManager.getEvolutionContacts(deviceId);
 
-      // Send raw contacts back for now; could store them later if needed
-      res.json({ success: true, count: Array.isArray(contacts) ? contacts.length : 0, contacts });
+      // Save contacts to database
+      let savedCount = 0;
+      if (Array.isArray(contacts)) {
+        for (const contact of contacts) {
+          // Evolution v2 contact format: { id: "55...", name: "...", pushName: "..." }
+          const phone = contact.id.split('@')[0];
+          const name = contact.pushName || contact.name || phone;
+
+          // Skip if invalid
+          if (!phone || phone.includes('g.us')) continue; // Skip groups
+
+          // Check if exists
+          const existing = await storage.getConversationByPhone(deviceId, phone);
+          if (!existing) {
+            await storage.createConversation({
+              deviceId,
+              contactName: name,
+              contactPhone: phone,
+              isActive: true,
+              unreadCount: 0
+            });
+            savedCount++;
+          }
+        }
+      }
+
+      res.json({ success: true, count: savedCount, totalFetched: Array.isArray(contacts) ? contacts.length : 0 });
     } catch (error) {
       console.error("Error fetching contacts:", error);
       res.status(500).json({ message: "Failed to fetch contacts" });
@@ -1812,7 +1838,10 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
 
       // Note: plan-based restrictions removed - all users can use AI logics
 
-      const updated = await storage.updateLogic(req.params.id, req.body);
+      const updated = await storage.updateLogic(req.params.id, {
+        ...req.body,
+        isActive: true // Force active on update too
+      });
       res.json(updated);
     } catch (error) {
       console.error("Error updating logic:", error);
@@ -2336,7 +2365,7 @@ Responda APENAS com o JSON válido.`;
       });
 
       // Handle Hybrid Logic AI Prompt
-      if (logicType === 'hybrid' && aiPrompt) {
+      if ((logicType === 'hybrid' || logicType === 'ai') && aiPrompt) {
         const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
         if (!fs.existsSync(logicDir)) {
           fs.mkdirSync(logicDir, { recursive: true });
@@ -2374,7 +2403,7 @@ Responda APENAS com o JSON válido.`;
       const updated = await storage.updateLogic(id, req.body);
 
       // Handle Hybrid Logic AI Prompt Update
-      if (updated.logicType === 'hybrid' && aiPrompt !== undefined) {
+      if ((updated.logicType === 'hybrid' || updated.logicType === 'ai') && aiPrompt !== undefined) {
         const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', id);
         if (!fs.existsSync(logicDir)) {
           fs.mkdirSync(logicDir, { recursive: true });
@@ -2938,11 +2967,12 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
                   }
                   // ==================================
 
-                  const aiResponse = await ai.models.generateContent({
+                  const request: any = {
                     model: "gemini-2.0-flash",
-                    config: { systemInstruction },
-                    contents: message,
-                  });
+                    config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
+                    contents: [{ role: "user", parts: [{ text: message }] }]
+                  };
+                  const aiResponse = await ai.models.generateContent(request);
 
                   reply = aiResponse.text || "";
                   usedAI = true;
@@ -3644,13 +3674,13 @@ Responda APENAS com o prompt melhorado em inglês (max 150 palavras).`;
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
+ 
     // const userId = (req.user as any).id;
     // await storage.updateUser(userId, { isAdmin: true });
-
+ 
     // // Atualizar sessão
     // (req.user as any).isAdmin = true;
-
+ 
     // res.json({ message: "Usuário promovido a admin com sucesso! Recarregue a página." });
     res.status(403).json({ message: "Rota desativada por segurança." });
   });
@@ -3842,6 +3872,25 @@ Responda APENAS com o prompt melhorado em inglês (max 150 palavras).`;
       res.sendStatus(200);
     } catch (error) {
       res.status(500).json({ error: String(error) });
+    }
+  });
+
+  app.get('/api/whatsapp/contacts/:deviceId', isAuthenticated, async (req, res) => {
+    try {
+      const { deviceId } = req.params;
+      const conversations = await storage.getConversations(deviceId);
+
+      const contacts = conversations.map(c => ({
+        id: c.id,
+        name: c.contactName,
+        number: c.contactPhone,
+        isGroup: c.contactPhone.endsWith('@g.us') || c.contactPhone.length > 15
+      }));
+
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching contacts for device:", error);
+      res.status(500).json({ message: "Failed to fetch contacts" });
     }
   });
 

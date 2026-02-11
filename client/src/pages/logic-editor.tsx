@@ -479,7 +479,7 @@ export default function LogicEditor() {
                       logicJson: {},
                       logicType: newLogicType,
                       behaviorConfigId: (selectedBehaviorId && selectedBehaviorId !== "none") ? selectedBehaviorId : undefined,
-                      aiPrompt: newLogicType === 'hybrid' ? aiPrompt : undefined,
+                      aiPrompt: (newLogicType === 'hybrid' || newLogicType === 'ai') ? aiPrompt : undefined,
                     })}
                     disabled={!newLogicName || createLogicMutation.isPending}
                     data-testid="button-submit-logic"

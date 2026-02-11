@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { logSystemEvent } from "./logManager";
+import { getAI } from "./ai";
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
 export { MessageMedia };
@@ -20,16 +21,7 @@ const sessions = new Map<string, {
 }>();
 
 // Initialize Gemini AI lazily
-let aiInstance: GoogleGenAI | null = null;
-
-function getAI() {
-  if (aiInstance) return aiInstance;
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (geminiKey) {
-    aiInstance = new GoogleGenAI({ apiKey: geminiKey });
-  }
-  return aiInstance;
-}
+// Managed in ./ai.ts
 
 // Helpers for Evolution API
 async function evolutionRequest(endpoint: string, method: string = 'GET', body: any = null) {
@@ -442,6 +434,45 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
   const logic = await storage.getLogic(device.activeLogicId);
   if (!logic) { console.log(`[Bot] ❌ Logic ${device.activeLogicId} not found in database`); return; }
   if (!logic.isActive) { console.log(`[Bot] ❌ Logic ${logic.id} is NOT active (isActive=false)`); return; }
+  // Check logicType before validating logicJson for AI types
+  if (logic.logicType === 'ai' || logic.logicType === 'hybrid') {
+    // Basic validation for hybrid/ai - prompts are stored in file, so logicJson might be empty
+    // We proceed to AI execution directly if it's 'ai' type
+    if (logic.logicType === 'ai') {
+      console.log(`[Bot] 🤖 Executing Pure AI Logic: "${logic.name}"`);
+      const ai = getAI();
+      if (ai) {
+        try {
+          // Load system prompt from file if available
+          const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
+          let systemInstruction = "Você é um assistente virtual útil.";
+
+          if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
+            systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
+          } else if ((logic.logicJson as any)?.ai_sys_prompt) {
+            systemInstruction = (logic.logicJson as any).ai_sys_prompt;
+          }
+
+          // Execute Gemini
+          const aiResult = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: [{ role: "user", parts: [{ text: messageBody }] }]
+          });
+          const aiReply = aiResult.text || "";
+
+          console.log(`[Bot] 🤖 AI replied: "${aiReply.substring(0, 80)}"`);
+          await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
+          await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
+          return;
+        } catch (err) {
+          console.error(`[Bot] ❌ AI Execution failed:`, err);
+          // Fallback to error message
+        }
+      }
+    }
+  }
+
   if (!logic.logicJson) { console.log(`[Bot] ❌ Logic ${logic.id} has no logicJson`); return; }
 
   console.log(`[Bot] 🧠 Executing logic: "${logic.name}" against message: "${messageBody.substring(0, 50)}"`);

@@ -191,6 +191,26 @@ export default function Devices() {
     },
   });
 
+  const fetchContactsMutation = useMutation({
+    mutationFn: async (deviceId: string) => {
+      return await apiRequest("POST", `/api/devices/${deviceId}/contacts-fetch`, {});
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Contatos Sincronizados",
+        description: `${data.count} novos contatos salvos de ${data.totalFetched} encontrados.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Falha ao sincronizar contatos",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       connected: { label: "Conectado", variant: "default" as const, color: "bg-status-online" },
@@ -408,6 +428,17 @@ export default function Devices() {
                       >
                         <Wifi className="w-3 h-3 mr-1" />
                         Configurar Webhook
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="text-[10px] h-7 px-2"
+                        onClick={() => fetchContactsMutation.mutate(device.id)}
+                        disabled={fetchContactsMutation.isPending}
+                        title="Importar contatos do WhatsApp para o Broadcast"
+                      >
+                        <RefreshCw className={`w-3 h-3 mr-1 ${fetchContactsMutation.isPending ? 'animate-spin' : ''}`} />
+                        Contatos
                       </Button>
                       <div className="flex items-center gap-1">
                         <Label className="text-[10px]">SDR Global</Label>
