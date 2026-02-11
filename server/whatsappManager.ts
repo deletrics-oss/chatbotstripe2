@@ -453,12 +453,33 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
             systemInstruction = (logic.logicJson as any).ai_sys_prompt;
           }
 
+          // Fetch Knowledge Base items to enrich AI context
+          try {
+            const knowledgeItems = await storage.getKnowledgeItems(logic.userId);
+            const activeKnowledge = knowledgeItems.filter(k => k.isActive);
+            if (activeKnowledge.length > 0) {
+              systemInstruction += `\n\nCONHECIMENTO ADICIONAL:\n`;
+              activeKnowledge.forEach(item => {
+                systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
+              });
+            }
+          } catch (kbErr) {
+            console.error(`[Bot] ⚠️ Error fetching knowledge base for AI:`, kbErr);
+          }
+
           // Execute Gemini
           const request: any = {
             model: "gemini-2.0-flash",
-            config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
+            config: {
+              systemInstruction: {
+                role: 'system',
+                parts: [{ text: systemInstruction }]
+              }
+            },
             contents: [{ role: "user", parts: [{ text: messageBody }] }]
           };
+
+          console.log(`[Bot] 🧠 Sending AI request with systemInstruction (length: ${systemInstruction.length})`);
           const aiResult = await ai.models.generateContent(request);
           const aiReply = aiResult.text || "";
 
@@ -640,15 +661,18 @@ export async function setEvolutionSettings(deviceId: string, settings: any) {
   // Evolution v2.3.7 Settings Endpoint
   return await evolutionRequest(`/chat/settings/${deviceId}`, 'POST', settings);
 }
-
 export async function getEvolutionContacts(deviceId: string) {
   console.log(`[Evolution] Fetching contacts for ${deviceId}...`);
-  // Evolution v2.3.7 Contacts Endpoint
-  const contacts = await evolutionRequest(`/chat/findContacts/${deviceId}`, 'GET');
-  console.log(`[Evolution] Fetched ${Array.isArray(contacts) ? contacts.length : 0} contacts for ${deviceId}`);
-  return contacts;
+  // Evolution v2.x Contacts Endpoint: /contact/fetchInstancesContacts/:instance
+  try {
+    const contacts = await evolutionRequest(`/contact/fetchInstancesContacts/${deviceId}`, 'GET');
+    console.log(`[Evolution] Fetched contacts for ${deviceId}:`, Array.isArray(contacts) ? contacts.length : 'Not an array');
+    return contacts;
+  } catch (err) {
+    console.error(`[Evolution] Error fetching contacts for ${deviceId}:`, err);
+    return [];
+  }
 }
-
 
 export function getWhatsAppSessionStatus(deviceId: string) {
   const session = sessions.get(deviceId); // Check legacy Map first
@@ -656,8 +680,43 @@ export function getWhatsAppSessionStatus(deviceId: string) {
   return null; // Return null so the caller falls back to DB or handles it
 }
 
-export async function syncContacts(deviceId: string) { return true; }
-export async function getWhatsAppContacts(deviceId: string) { return []; }
+export async function getWhatsAppContacts(deviceId: string) {
+  return await getEvolutionContacts(deviceId);
+}
+
+export async function syncContacts(deviceId: string) {
+  console.log(`[Sync] Syncing contacts for device ${deviceId}...`);
+  try {
+    const contacts = await getEvolutionContacts(deviceId);
+    if (!Array.isArray(contacts)) {
+      console.warn(`[Sync] Evolution returned non-array for contacts:`, contacts);
+      return false;
+    }
+
+    for (const contact of contacts) {
+      const phone = contact.id.split('@')[0];
+      const name = contact.name || contact.pushname || phone;
+
+      const conversations = await storage.getConversations(deviceId);
+      const existing = conversations.find(c => c.contactPhone === phone);
+
+      if (!existing) {
+        await storage.createConversation({
+          deviceId,
+          contactName: name,
+          contactPhone: phone,
+          contactProfilePic: contact.profilePicUrl || null,
+          isActive: true,
+          unreadCount: 0
+        });
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error(`[Sync] Error syncing contacts:`, err);
+    return false;
+  }
+}
 export async function forceCleanupSession(deviceId: string) { return await destroyWhatsAppSession(deviceId); }
 export const sendMessage = sendWhatsAppMessage;
 export const saveMessageToDbExport = saveMessageToDb;
