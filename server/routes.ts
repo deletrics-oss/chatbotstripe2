@@ -62,12 +62,32 @@ function getAI(userApiKey?: string | null): GoogleGenAI | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Evolution API Webhook (Public)
-  app.post("/api/webhooks/evolution", async (req, res) => {
+  // Evolution API Webhook (Public) - supports both direct and webhookByEvents format
+  app.post("/api/webhooks/evolution/:eventType?", async (req, res) => {
     try {
-      const event = req.body?.event || 'unknown';
+      // When webhookByEvents is enabled, Evolution sends to /api/webhooks/evolution/messages-upsert
+      // The event name from the URL path takes priority
+      const eventFromPath = req.params.eventType;
+      let event = req.body?.event || 'unknown';
       const instance = req.body?.instance || 'unknown';
-      console.log(`[Webhook] Received event: ${event} for instance: ${instance}`);
+
+      // Map URL event names to the internal event names used by the handler
+      if (eventFromPath && event === 'unknown') {
+        const eventMap: Record<string, string> = {
+          'messages-upsert': 'MESSAGES_UPSERT',
+          'connection-update': 'CONNECTION_UPDATE',
+          'qrcode-updated': 'QRCODE_UPDATED',
+          'contacts-upsert': 'CONTACTS_UPSERT',
+          'contacts-update': 'CONTACTS_UPDATE',
+          'chats-upsert': 'CHATS_UPSERT',
+          'chats-update': 'CHATS_UPDATE',
+          'presence-update': 'PRESENCE_UPDATE',
+        };
+        event = eventMap[eventFromPath] || eventFromPath.toUpperCase().replace(/-/g, '_');
+        req.body.event = event;
+      }
+
+      console.log(`[Webhook] Received event: ${event} for instance: ${instance} (path: ${eventFromPath || 'direct'})`);
       res.status(200).send("OK"); // Always respond 200 fast
       await whatsappManager.handleEvolutionWebhook(req.body);
     } catch (error) {
