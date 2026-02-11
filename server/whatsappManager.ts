@@ -490,10 +490,12 @@ export async function restoreWhatsAppSessions(): Promise<void> {
 
 // Function to process incoming messages from Webhook
 export async function handleEvolutionWebhook(data: any) {
-  const event = data.event;
+  // Normalize event name: Evolution v2.3.7 sends "messages.upsert" but handler expects "MESSAGES_UPSERT"
+  const rawEvent = data.event || '';
+  const event = rawEvent.toUpperCase().replace(/\./g, '_').replace(/-/g, '_');
   const instance = data.instance;
 
-  console.log(`[Webhook Handler] Event: ${event}, Instance: ${instance}`);
+  console.log(`[Webhook Handler] Event: ${rawEvent} -> ${event}, Instance: ${instance}`);
 
   if (event === 'MESSAGES_UPSERT') {
     const message = data.data;
