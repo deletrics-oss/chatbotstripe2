@@ -1580,32 +1580,14 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
 
   app.post('/api/devices/:id/set-webhook', isAuthenticated, async (req: any, res) => {
     try {
-      const { url } = req.body;
       const deviceId = req.params.id;
+      const webhookUrl = req.body.url || `https://chatbot.deletrics.site/api/webhooks/evolution`;
 
-      // Evolution API Request to set Webhook
-      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://127.0.0.1:8084";
-      const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "chatbot_premium_key_2026";
+      console.log(`[Route] Setting webhook for ${deviceId}: ${webhookUrl}`);
+      const result = await whatsappManager.setEvolutionWebhook(deviceId, webhookUrl);
+      console.log(`[Route] Webhook set result:`, JSON.stringify(result));
 
-      await fetch(`${EVOLUTION_API_URL}/webhook/set/${deviceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_KEY
-        },
-        body: JSON.stringify({
-          enabled: true,
-          url: url,
-          webhook_by_events: false,
-          events: [
-            "QRCODE_UPDATED",
-            "MESSAGES_UPSERT",
-            "CONNECTION_UPDATE"
-          ]
-        })
-      });
-
-      res.json({ success: true });
+      res.json({ success: true, result });
     } catch (error) {
       console.error("Error setting webhook:", error);
       res.status(500).json({ message: "Failed to set webhook" });

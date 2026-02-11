@@ -542,6 +542,15 @@ export async function handleEvolutionWebhook(data: any) {
     console.log(`[Webhook] CONNECTION_UPDATE: ${status} for instance ${instance}`);
     if (status === 'open') {
       await storage.updateDevice(instance, { connectionStatus: 'connected', qrCode: null });
+      // Auto-configure webhook when device connects
+      try {
+        const webhookUrl = `https://chatbot.deletrics.site/api/webhooks/evolution`;
+        console.log(`[Webhook] Auto-setting webhook for ${instance}: ${webhookUrl}`);
+        await setEvolutionWebhook(instance, webhookUrl);
+        console.log(`[Webhook] ✅ Webhook auto-configured for ${instance}`);
+      } catch (err) {
+        console.error(`[Webhook] ⚠️ Failed to auto-set webhook for ${instance}:`, err);
+      }
     } else if (status === 'close' || status === 'refused') {
       await storage.updateDevice(instance, { connectionStatus: 'disconnected' });
     }
@@ -555,16 +564,25 @@ export async function handleEvolutionWebhook(data: any) {
 }
 
 export async function setEvolutionWebhook(deviceId: string, webhookUrl: string) {
-  return await evolutionRequest(`/webhook/set/${deviceId}`, 'POST', {
+  console.log(`[Evolution] Setting webhook for ${deviceId} -> ${webhookUrl}`);
+  const result = await evolutionRequest(`/webhook/set/${deviceId}`, 'POST', {
     url: webhookUrl,
     enabled: true,
     webhook_by_events: false,
     events: [
       "MESSAGES_UPSERT",
+      "MESSAGES_UPDATE",
+      "SEND_MESSAGE",
+      "CONTACTS_UPDATE",
       "CONNECTION_UPDATE",
-      "QRCODE_UPDATED"
+      "QRCODE_UPDATED",
+      "CHATS_UPDATE",
+      "CHATS_UPSERT",
+      "PRESENCE_UPDATE"
     ]
   });
+  console.log(`[Evolution] Webhook set result for ${deviceId}:`, JSON.stringify(result));
+  return result;
 }
 
 
