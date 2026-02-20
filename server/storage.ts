@@ -34,9 +34,12 @@ import {
   systemLogs,
   type InsertSystemLog,
   type SystemLog,
+  messageTemplates,
+  type MessageTemplate,
+  type InsertMessageTemplate,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as fs from "fs";
 import * as path from "path";
@@ -60,7 +63,6 @@ export interface IStorage {
   getDevices(userId: string): Promise<WhatsappDevice[]>;
   getDevice(id: string): Promise<WhatsappDevice | undefined>;
   createDevice(device: InsertWhatsappDevice): Promise<WhatsappDevice>;
-  updateDevice(id: string, data: Partial<WhatsappDevice>): Promise<WhatsappDevice>;
   updateDevice(id: string, data: Partial<WhatsappDevice>): Promise<WhatsappDevice>;
   deleteDevice(id: string): Promise<void>;
   getAllDevices(): Promise<WhatsappDevice[]>; // Added for system restoration
@@ -119,6 +121,8 @@ export interface IStorage {
   // User operations
   updateUser(id: string, data: any): Promise<User>;
   upsertUser(user: User): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+  getConversationByPhone(deviceId: string, phone: string): Promise<Conversation | undefined>;
 
   // Web Assistants
   getWebAssistants(userId: string): Promise<WebAssistant[]>;
@@ -137,6 +141,14 @@ export interface IStorage {
   saveBillingConfig(config: Partial<BillingConfig>): Promise<BillingConfig>;
   // System Logs
   createSystemLog(log: any): Promise<any>;
+  getSystemLogs(filters?: any): Promise<SystemLog[]>;
+  getGlobalStats(): Promise<any>;
+
+  // Message Templates
+  getTemplates(userId: string): Promise<MessageTemplate[]>;
+  createTemplate(template: InsertMessageTemplate): Promise<MessageTemplate>;
+  updateTemplate(id: string, data: Partial<MessageTemplate>): Promise<MessageTemplate>;
+  deleteTemplate(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -161,6 +173,36 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBroadcastTemplate(id: string): Promise<void> {
     await db.delete(broadcastTemplates).where(eq(broadcastTemplates.id, id));
+  }
+
+  // Message Templates
+  async getTemplates(userId: string): Promise<MessageTemplate[]> {
+    return await db
+      .select()
+      .from(messageTemplates)
+      .where(eq(messageTemplates.userId, userId))
+      .orderBy(desc(messageTemplates.createdAt));
+  }
+
+  async createTemplate(template: InsertMessageTemplate): Promise<MessageTemplate> {
+    const [newTemplate] = await db
+      .insert(messageTemplates)
+      .values(template)
+      .returning();
+    return newTemplate;
+  }
+
+  async updateTemplate(id: string, data: Partial<MessageTemplate>): Promise<MessageTemplate> {
+    const [updated] = await db
+      .update(messageTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(messageTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTemplate(id: string): Promise<void> {
+    await db.delete(messageTemplates).where(eq(messageTemplates.id, id));
   }
 
   async createSystemLog(logData: any): Promise<any> {
@@ -266,6 +308,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(conversations.id, id))
       .returning();
     return updated;
+  }
+
+  async getConversationByPhone(deviceId: string, phone: string): Promise<Conversation | undefined> {
+    const [conversation] = await db
+      .select()
+      .from(conversations)
+      .where(sql`${conversations.deviceId} = ${deviceId} AND ${conversations.contactPhone} = ${phone}`);
+    return conversation;
   }
 
   // Messages
@@ -627,6 +677,39 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async getGlobalStats(): Promise<any> {
+    const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    const [deviceCount] = await db.select({ count: sql<number>`count(*)` }).from(whatsappDevices);
+    const allDevices = await db.select().from(whatsappDevices);
+    const activeDevices = allDevices.filter((d: any) => d.connectionStatus === 'connected').length;
+    const [messageCount] = await db.select({ count: sql<number>`count(*)` }).from(messages);
+
+    return {
+      users: Number(userCount.count),
+      devices: Number(deviceCount.count),
+      active_devices: activeDevices,
+      messages: Number(messageCount.count)
+    };
+  }
+
+  async getSystemLogs(filters: any = {}): Promise<SystemLog[]> {
+    let query = db.select().from(systemLogs);
+    const logs = await query.orderBy(desc(systemLogs.createdAt));
+
+    let filteredLogs = logs;
+    if (filters.category) filteredLogs = filteredLogs.filter((l: any) => l.category === filters.category);
+    if (filters.level) filteredLogs = filteredLogs.filter((l: any) => l.level === filters.level);
+    if (filters.deviceId) filteredLogs = filteredLogs.filter((l: any) => l.deviceId === filters.deviceId);
+
+    if (filters.limit) filteredLogs = filteredLogs.slice(0, filters.limit);
+
+    return filteredLogs as SystemLog[];
+  }
 }
 
 // Comportamentos Padrões (Presets)
@@ -685,7 +768,7 @@ const PRESET_BEHAVIORS: BotBehaviorConfig[] = [
   },
 ];
 
-export type BillingConfig = typeof billingConfig.$inferSelect;
+export type BillingConfig = typeof billingConfigTable.$inferSelect;
 
 const DEFAULT_BILLING_CONFIG: BillingConfig = {
   billingMode: 'manual',
@@ -700,19 +783,29 @@ const DEFAULT_BILLING_CONFIG: BillingConfig = {
   pixKey: '',
   pixBeneficiary: '',
   pixBank: '',
-  basicName: 'Básico',
-  basicPrice: 29.90,
+  pixReceiverName: '',
+  freePlanName: 'Free Trial',
+  freePlanFeatures: ["1 Bot WhatsApp", "Respostas Básicas", "Suporte da Comunidade"],
+  basicPlanName: 'Básico',
+  basicPlanPrice: 2990,
   basicPriceId: '',
-  basicFeatures: '2 dispositivos WhatsApp\nEditor de lógicas JSON completo\nUpload de JSON customizado\nTemplates prontos\nChat em tempo real\nBase de conhecimento',
-  proName: 'Profissional',
-  proPrice: 69.90,
+  basicPlanFeatures: ["Bots Ilimitados", "Integração AI Básica", "Suporte por Email"],
+  fullPlanName: 'Full',
+  fullPlanPrice: 5990,
+  fullPriceId: '',
+  fullPlanFeatures: ["Tudo do Básico", "AI Avançada (GPT-4)", "Suporte Prioritário", "API Acesso"],
+  proPlanName: 'Profissional',
+  proPlanPrice: 6990,
   proPriceId: '',
-  proFeatures: 'Agendamentos ilimitados\n5 Profissionais\nWhatsApp Bot\nSuporte prioritário',
-  enterpriseName: 'Full',
-  enterprisePrice: 99.90,
+  proPlanFeatures: ["Agendamentos ilimitados", "WhatsApp Bot"],
+  enterprisePlanName: 'Enterprise',
+  enterprisePlanPrice: 9990,
   enterprisePriceId: '',
-  enterpriseFeatures: '3 dispositivos WhatsApp\nLógicas JSON + IA Gemini\nBot inteligente que aprende\nRespostas IA personalizadas\nGerador automático de lógicas\nWebhooks e integrações',
+  enterprisePlanFeatures: ["Tudo do Pro", "IA Avançada"],
   trialDays: 30,
+  updatedAt: new Date(),
+  geminiApiKey: '',
+  id: 'default'
 };
 
 // In-memory storage implementation
@@ -728,7 +821,9 @@ export class MemStorage implements IStorage {
   private broadcasts = new Map<string, any>();
   private broadcastContacts = new Map<string, any>();
   private broadcastTemplates = new Map<string, BroadcastTemplate>();
+  private messageTemplates = new Map<string, MessageTemplate>();
   private webAssistants = new Map<string, WebAssistant>();
+  private systemLogs: SystemLog[] = [];
   private billingConfig: BillingConfig | null = null;
 
   constructor() {
@@ -776,6 +871,7 @@ export class MemStorage implements IStorage {
         if (data.broadcasts) this.broadcasts = new Map(data.broadcasts.map((b: any) => [b.id, revive(b)]));
         if (data.broadcastContacts) this.broadcastContacts = new Map(data.broadcastContacts.map((c: any) => [c.id, revive(c)]));
         if (data.broadcastTemplates) this.broadcastTemplates = new Map(data.broadcastTemplates.map((t: any) => [t.id, revive(t)]));
+        if (data.messageTemplates) this.messageTemplates = new Map(data.messageTemplates.map((t: any) => [t.id, revive(t)]));
         if (data.billingConfig) this.billingConfig = data.billingConfig;
 
         console.log(`[Storage] Data loaded from ${DB_FILE}`);
@@ -799,6 +895,7 @@ export class MemStorage implements IStorage {
         broadcastContacts: Array.from(this.broadcastContacts.values()),
         webAssistants: Array.from(this.webAssistants.values()),
         broadcastTemplates: Array.from(this.broadcastTemplates.values()),
+        messageTemplates: Array.from(this.messageTemplates.values()),
         billingConfig: this.billingConfig,
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
@@ -832,6 +929,8 @@ export class MemStorage implements IStorage {
       currentPlan: userData.currentPlan || 'free',
       planExpiresAt: userData.planExpiresAt || null,
       isAdmin: userData.isAdmin || false,
+      onboardingCompleted: userData.onboardingCompleted ?? false,
+      geminiApiKey: userData.geminiApiKey || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -847,6 +946,11 @@ export class MemStorage implements IStorage {
     this.users.set(id, updated);
     this.saveData();
     return updated;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    this.users.delete(id);
+    this.saveData();
   }
 
   async upsertUser(userData: User): Promise<User> {
@@ -885,7 +989,11 @@ export class MemStorage implements IStorage {
       qrCode: null,
       lastConnectedAt: null,
       activeLogicId: null,
-      isPaused: false,
+      integrationType: device.integrationType || 'whatsapp-web-js',
+      instanceName: device.instanceName || null,
+      isGlobalSdr: device.isGlobalSdr ?? false,
+      isPaused: device.isPaused ?? false,
+      shouldTranscribe: device.shouldTranscribe ?? true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -934,6 +1042,7 @@ export class MemStorage implements IStorage {
       id: nanoid(),
       lastMessageAt: new Date(),
       unreadCount: conversation.unreadCount || 0,
+      contactProfilePic: conversation.contactProfilePic || null,
       isActive: conversation.isActive !== undefined ? conversation.isActive : true,
       createdAt: new Date(),
     };
@@ -963,8 +1072,10 @@ export class MemStorage implements IStorage {
       ...message,
       id: nanoid(),
       isFromBot: message.isFromBot || false,
-      timestamp: message.timestamp || new Date(),
+      timestamp: new Date(),
       createdAt: new Date(),
+      mediaUrl: message.mediaUrl || null,
+      mediaType: message.mediaType || null,
       mediaUrls: message.mediaUrls || null,
       mediaTypes: message.mediaTypes || null,
     };
@@ -1153,7 +1264,16 @@ export class MemStorage implements IStorage {
   }
 
   async createBroadcast(data: any): Promise<any> {
-    const newBroadcast = { ...data, id: nanoid(), createdAt: new Date(), startedAt: null, completedAt: null };
+    const newBroadcast = {
+      ...data,
+      id: nanoid(),
+      createdAt: new Date(),
+      startedAt: null,
+      completedAt: null,
+      startTime: data.startTime || null,
+      endTime: data.endTime || null,
+      daysOfWeek: data.daysOfWeek || null,
+    };
     this.broadcasts.set(newBroadcast.id, newBroadcast);
     this.saveData();
     return newBroadcast;
@@ -1275,9 +1395,84 @@ export class MemStorage implements IStorage {
     return this.billingConfig as unknown as BillingConfig;
   }
 
+  async getGlobalStats(): Promise<any> {
+    const activeDevices = Array.from(this.devices.values()).filter(d => d.connectionStatus === 'connected').length;
+    return {
+      users: this.users.size,
+      devices: this.devices.size,
+      active_devices: activeDevices,
+      messages: this.messages.size
+    };
+  }
+
+  async getSystemLogs(filters: any = {}): Promise<SystemLog[]> {
+    let logs = this.systemLogs;
+    if (filters.category) logs = logs.filter(l => l.category === filters.category);
+    if (filters.level) logs = logs.filter(l => l.level === filters.level);
+    if (filters.deviceId) logs = logs.filter(l => l.deviceId === filters.deviceId);
+
+    // Sort by createdAt desc
+    logs.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+
+    if (filters.limit) logs = logs.slice(0, filters.limit);
+    return logs;
+  }
+
   async createSystemLog(log: any): Promise<any> {
-    const newLog = { ...log, id: Math.random().toString(36).substr(2, 9), createdAt: new Date() };
+    const newLog: SystemLog = {
+      ...log,
+      id: Math.random().toString(36).substr(2, 9),
+      createdAt: new Date()
+    };
+    this.systemLogs.push(newLog);
+    // Keep only last 1000 logs in memory
+    if (this.systemLogs.length > 1000) {
+      this.systemLogs.shift();
+    }
     return newLog;
+  }
+
+  async getConversationByPhone(deviceId: string, phone: string): Promise<Conversation | undefined> {
+    return Array.from(this.conversations.values()).find(
+      c => c.deviceId === deviceId && c.contactPhone === phone
+    );
+  }
+
+  // Message Templates
+  async getTemplates(userId: string): Promise<MessageTemplate[]> {
+    return Array.from(this.messageTemplates.values())
+      .filter(t => t.userId === userId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async createTemplate(template: InsertMessageTemplate): Promise<MessageTemplate> {
+    const id = nanoid();
+    const newTemplate: MessageTemplate = {
+      ...template,
+      id,
+      category: template.category || null,
+      buttons: template.buttons || null,
+      footerText: template.footerText || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as MessageTemplate;
+    this.messageTemplates.set(id, newTemplate);
+    this.saveData();
+    return newTemplate;
+  }
+
+  async updateTemplate(id: string, data: Partial<MessageTemplate>): Promise<MessageTemplate> {
+    const existing = this.messageTemplates.get(id);
+    if (!existing) throw new Error("Template not found");
+    const updated = { ...existing, ...data, updatedAt: new Date() };
+    this.messageTemplates.set(id, updated);
+    this.saveData();
+    return updated;
+  }
+
+  async deleteTemplate(id: string): Promise<void> {
+    this.messageTemplates.delete(id);
+    this.saveData();
   }
 }
 

@@ -36,6 +36,38 @@ export async function processBroadcast(broadcastId: string) {
         return;
       }
 
+
+      // Check Schedule (Smart Scheduling)
+      if (broadcast.startTime && broadcast.endTime && broadcast.daysOfWeek && broadcast.daysOfWeek.length > 0) {
+        const now = new Date();
+        const currentDay = now.getDay(); // 0 = Sun, 1 = Mon...
+        const daysMap = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const currentDayName = daysMap[currentDay];
+
+        if (!broadcast.daysOfWeek.includes(currentDayName)) {
+          console.log(`[Broadcast] ${broadcastId} paused: Today (${currentDayName}) is not in scheduled days.`);
+          // Wait 1 minute before checking again
+          const timeout = setTimeout(runLoop, 60000);
+          runningBroadcasts.set(broadcastId, timeout);
+          return;
+        }
+
+        const [startHour, startMinute] = broadcast.startTime.split(':').map(Number);
+        const [endHour, endMinute] = broadcast.endTime.split(':').map(Number);
+
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const startMinutes = startHour * 60 + startMinute;
+        const endMinutes = endHour * 60 + endMinute;
+
+        if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
+          console.log(`[Broadcast] ${broadcastId} paused: Outside scheduled hours (${broadcast.startTime} - ${broadcast.endTime}).`);
+          // Wait 1 minute before checking again
+          const timeout = setTimeout(runLoop, 60000);
+          runningBroadcasts.set(broadcastId, timeout);
+          return;
+        }
+      }
+
       // Get next pending contact
       const contacts = await storage.getBroadcastContacts(broadcastId);
       const nextContact = contacts.find(c => c.status === 'pending');

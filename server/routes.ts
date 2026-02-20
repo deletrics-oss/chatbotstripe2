@@ -19,7 +19,7 @@ import puppeteer from "puppeteer";
 import { LOGIC_TEMPLATES } from "./templates";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
-import { getAI } from "./ai";
+import { getAI, resetAI } from "./ai";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -1153,8 +1153,8 @@ ${currentJson ? 'If the original is JSON, return valid JSON.' : 'Return ONLY the
         return res.status(500).json({ response: "Erro: API Key do Gemini não configurada no servidor." });
       }
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const ai = getAI(apiKey);
+      if (!ai) return res.status(500).json({ response: "Erro: AI service not configured" });
 
       const systemPrompt = `
 Você é o "Guru do Sistema", um assistente virtual especializado nesta plataforma SaaS de Chatbots para WhatsApp.
@@ -1179,8 +1179,9 @@ Se perguntar sobre erros, peça logs ou detalhes.
 Mantenha as respostas curtas e objetivas.
 `;
 
-      const chat = model.startChat({
-        history: [
+      const result = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [
           {
             role: "user",
             parts: [{ text: systemPrompt }],
@@ -1192,12 +1193,12 @@ Mantenha as respostas curtas e objetivas.
           ...(history || []).map((h: any) => ({
             role: h.role === 'user' ? 'user' : 'model',
             parts: [{ text: h.content }]
-          }))
+          })),
+          { role: "user", parts: [{ text: message }] }
         ],
       });
 
-      const result = await chat.sendMessage(message);
-      const response = result.response.text();
+      const response = result.text || "Desculpe, não consegui processar sua mensagem agora.";
       res.json({ response });
 
     } catch (error: any) {
@@ -1257,8 +1258,8 @@ Mantenha as respostas curtas e objetivas.
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) return res.status(500).json({ error: "API Key não configurada" });
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const ai = getAI(apiKey);
+      if (!ai) return res.status(500).json({ error: "AI service not configured" });
 
       const systemPrompt = `
 Você é um Arquiteto de Chatbots Especialista.
@@ -1285,19 +1286,20 @@ JSON Atual:
 ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
 `;
 
-      const chat = model.startChat({
-        history: [
+      const result = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [
           { role: "user", parts: [{ text: systemPrompt }] },
           { role: "model", parts: [{ text: "Entendido. Aguardando instruções." }] },
           ...messages.map((m: any) => ({
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.content }]
-          }))
+          })),
+          { role: "user", parts: [{ text: "Analise e responda." }] }
         ]
       });
 
-      const result = await chat.sendMessage("Analise e responda.");
-      const responseText = result.response.text();
+      const responseText = result.text || "Erro ao processar lógica via IA.";
 
       // Extract JSON from response
       const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/```\n([\s\S]*?)\n```/);
@@ -2538,6 +2540,9 @@ Responda APENAS com o JSON válido.`;
         mediaUrls: mediaUrls || (mediaUrl ? [mediaUrl] : null),
         mediaTypes: mediaTypes || (mediaType ? [mediaType] : null),
         delay: delay || 20,
+        startTime: req.body.startTime,
+        endTime: req.body.endTime,
+        daysOfWeek: req.body.daysOfWeek,
         status: 'pending',
         scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : null,
         totalContacts: validContacts.length,
@@ -2646,8 +2651,7 @@ Responda APENAS com o JSON válido.`;
       }
 
       // Get contacts from WhatsApp
-      const includeGroups = req.query.includeGroups === 'true';
-      const contacts = await whatsappManager.getWhatsAppContacts(req.params.deviceId, includeGroups);
+      const contacts = await whatsappManager.getWhatsAppContacts(req.params.deviceId);
       res.json(contacts);
     } catch (error) {
       console.error("Error fetching contacts:", error);
@@ -3775,7 +3779,7 @@ Responda APENAS com o prompt melhorado em inglês (max 150 palavras).`;
     try {
       const config = await storage.saveBillingConfig(req.body);
       // Reset the global AI instance so it reloads the new key
-      aiInstance = null;
+      resetAI();
       res.json(config);
     } catch (error) {
       res.status(500).json({ error: String(error) });

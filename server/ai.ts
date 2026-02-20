@@ -33,3 +33,9 @@ export function getAI(userApiKey?: string | null): GoogleGenAI | null {
     console.warn(`[AI] ⚠️ getAI() called but NO valid API Key found in env or user settings.`);
     return null;
 }
+
+export function resetAI() {
+    console.log('[AI] Resetting AI instances...');
+    systemAiInstance = null;
+    userAiInstances.clear();
+}

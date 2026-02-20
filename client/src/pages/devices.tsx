@@ -13,8 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { WhatsappDevice, LogicConfig } from "@shared/schema";
 
+interface EvolutionStatus {
+  error?: string;
+  version?: string;
+}
+
 function EvolutionStatusBadge() {
-  const { data: status, isLoading } = useQuery({
+  const { data: status, isLoading } = useQuery<EvolutionStatus>({
     queryKey: ['/api/admin/evolution-status'],
     retry: false,
     refetchInterval: 30000

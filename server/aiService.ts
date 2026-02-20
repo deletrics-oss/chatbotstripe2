@@ -1,4 +1,29 @@
 import { getAI } from "./ai";
+import puppeteer from "puppeteer";
+
+// Helper to scrape URL
+async function scrapeUrl(url: string): Promise<string> {
+    console.log(`[AI Scraper] Scraping URL: ${url}`);
+    try {
+        const browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        // Set user agent to avoid bot detection
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        // Extract text from body
+        const text = await page.evaluate(() => {
+            return document.body.innerText;
+        });
+
+        await browser.close();
+        // Limit text length
+        return text.substring(0, 8000);
+    } catch (error) {
+        console.error(`[AI Scraper] Error scraping ${url}:`, error);
+        return "";
+    }
+}
 
 export interface SDRConfig {
     product: string;
@@ -125,12 +150,24 @@ export async function generateSDRResponse(
         .map(m => `${m.role === 'assistant' ? 'SDR' : 'CLIENTE'}: ${m.content}`)
         .join('\n');
 
+    // Check for URLs in product and description
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const combinedText = `${config.product} ${config.productDescription || ''}`;
+    const urls = combinedText.match(urlRegex);
+    let scrapedContent = "";
+
+    if (urls && urls.length > 0) {
+        // Scrape the first URL found (to save time/resources)
+        scrapedContent = await scrapeUrl(urls[0]);
+    }
+
     const prompt = `Você é um SDR de IA (Sales Development Representative) focado em WhatsApp. 
 Sua missão é continuar a conversa com o cliente ${leadName} de forma natural, humana e persuasiva.
 
 **Informações do Produto/Serviço:**
 ${config.product}
 ${config.productDescription ? `Detalhes Adicionais: ${config.productDescription}` : ""}
+${scrapedContent ? `\n**Conteúdo Extraído do Site (Contexto Adicional):**\n${scrapedContent}` : ""}
 
 **Configuração da Persona:**
 - Tom: ${toneDescriptions[config.tone || 'professional']}

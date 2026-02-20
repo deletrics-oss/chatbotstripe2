@@ -66,6 +66,8 @@ async function upsertUser(claims: any) {
     createdAt: existingUser?.createdAt || new Date(),
     updatedAt: new Date(),
     isAdmin: false,
+    geminiApiKey: null,
+    onboardingCompleted: false,
   });
 }
 

@@ -132,6 +132,8 @@ export const messages = pgTable("messages", {
   isFromBot: boolean("is_from_bot").notNull().default(false),
   mediaUrl: text("media_url"),
   mediaType: varchar("media_type"),
+  mediaUrls: text("media_urls").array(),
+  mediaTypes: text("media_types").array(),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -249,6 +251,9 @@ export const broadcasts = pgTable("broadcasts", {
   updatedAt: timestamp("updated_at").defaultNow(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
+  startTime: varchar("start_time"),
+  endTime: varchar("end_time"),
+  daysOfWeek: text("days_of_week").array(),
 });
 
 export const insertBroadcastSchema = createInsertSchema(broadcasts).omit({

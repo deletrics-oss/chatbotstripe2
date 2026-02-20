@@ -1,788 +1,248 @@
-import { useState, useRef } from "react";
+
+import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Slider } from "@/components/ui/slider";
-import { Send, Users, Sparkles, CheckCircle, XCircle, Clock, Play, Pause, Trash2, Copy, Search, Mic, Square } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { VoiceEditor } from "@/components/voice-editor";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Calendar, Clock, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
-interface Contact {
-  id: string;
-  name: string;
-  number: string;
-  isGroup: boolean;
-}
+const colors = {
+  bg: '#0a0a12',
+  bgCard: 'rgba(255, 255, 255, 0.03)',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  white: '#ffffff',
+  white60: 'rgba(255, 255, 255, 0.6)',
+  white40: 'rgba(255, 255, 255, 0.4)',
+  white20: 'rgba(255, 255, 255, 0.2)',
+  white10: 'rgba(255, 255, 255, 0.1)',
+};
 
-export default function BroadcastPage() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
-  const [selectedDevice, setSelectedDevice] = useState<string>("");
-  const [broadcastName, setBroadcastName] = useState("");
+export default function DisparoPage() {
+  const { toast } = useToast();
+  const [campaignName, setCampaignName] = useState("");
   const [message, setMessage] = useState("");
-  const [aiPrompt, setAIPrompt] = useState("");
-  const [aiContext, setAiContext] = useState("");
-  const [aiGenerationMode, setAiGenerationMode] = useState<"replace" | "append">("replace");
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [mediaType, setMediaType] = useState<"none" | "image" | "video">("none");
-  const [mediaUrl, setMediaUrl] = useState("");
+  const [delay, setDelay] = useState("30");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Seg', 'Ter', 'Qua', 'Qui', 'Sex']);
+  const [selectedDevice, setSelectedDevice] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [delay, setDelay] = useState(20);
-  const [searchTerm, setSearchTerm] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
+  // Fetch Devices
   const { data: devices } = useQuery<any[]>({
     queryKey: ['/api/devices'],
   });
 
-  const { data: broadcasts, isLoading: loadingBroadcasts } = useQuery<any[]>({
-    queryKey: ['/api/broadcasts'],
-    refetchInterval: 5000,
-  });
-
-  const { data: contacts, isLoading: loadingContacts } = useQuery<Contact[]>({
+  // Fetch Contacts when device is selected
+  const { data: contacts, isLoading: loadingContacts } = useQuery<any[]>({
     queryKey: ['/api/whatsapp/contacts', selectedDevice],
-    enabled: !!selectedDevice && isCreateDialogOpen,
+    enabled: !!selectedDevice,
   });
 
-  const { data: templates } = useQuery<any[]>({
-    queryKey: ['/api/broadcast-templates'],
-  });
+  useEffect(() => {
+    if (devices && devices.length > 0 && !selectedDevice) {
+      const connected = devices.find(d => d.connectionStatus === 'connected');
+      if (connected) setSelectedDevice(connected.id);
+    }
+  }, [devices]);
 
-  const createTemplateMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", "/api/broadcast-templates", {
-        name: broadcastName || `Modelo ${new Date().toLocaleString()}`,
-        content: message,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/broadcast-templates'] });
-      toast({ title: "Modelo salvo com sucesso!" });
-    },
-  });
-
-  const generateAIMutation = useMutation({
-    mutationFn: async (prompt: string) => {
-      // Smart context: if there's already content, include it automatically
-      let finalPrompt = prompt;
-
-      if (message.trim() && !aiContext) {
-        // Include current message as context for AI to understand and work with
-        finalPrompt = `CONTEÚDO ATUAL DA MENSAGEM:
-"""
-${message}
-"""
-
-INSTRUÇÃO DO USUÁRIO:
-${prompt}
-
-DIRETRIZES PARA A IA:
-- Se o usuário pedir para adicionar/incluir/inserir: continue a lista mantendo exatamente o mesmo formato
-- Se pedir para remover/deletar/tirar: remova os itens mencionados
-- Se pedir para alterar/mudar/trocar: faça as mudanças solicitadas mantendo o resto
-- Se pedir para criar algo novo: use o conteúdo atual como referência de estilo, tom e formatação
-- Se pedir cálculos (aumentar X%, diminuir Y%, multiplicar): faça os cálculos nos valores existentes
-- Sempre mantenha o estilo, formatação, emojis e estrutura do conteúdo atual
-- Se tiver lista numerada (1. 2. 3.), continue a numeração corretamente
-- Se tiver bullets (- ou •), use o mesmo caractere
-- Se tiver preços, mantenha o formato R$ XX,XX
-- Retorne SEMPRE o conteúdo COMPLETO atualizado, não apenas as mudanças
-- Seja útil, criativo e adaptável ao que o usuário precisa
-
-Retorne apenas o resultado final sem explicações adicionais.`;
-      }
-
-      const res = await apiRequest("POST", "/api/ai/generate-broadcast", {
-        prompt: finalPrompt,
-        context: aiContext || ""
-      });
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      if (aiGenerationMode === "append") {
-        setMessage(prev => prev ? `${prev}\n\n${data.message}` : data.message);
-      } else {
-        setMessage(data.message);
-      }
-      setIsAIDialogOpen(false);
-      toast({
-        title: "✨ Mensagem gerada!",
-        description: aiGenerationMode === "append" ? "Conteúdo adicionado à mensagem" : "Mensagem atualizada com sucesso"
-      });
-    },
-  });
+  useEffect(() => {
+    if (selectAll && contacts) {
+      setSelectedContacts(contacts.map(c => c.number));
+    } else {
+      setSelectedContacts([]);
+    }
+  }, [selectAll, contacts]);
 
   const createBroadcastMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/broadcasts", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/broadcasts'] });
-      setIsCreateDialogOpen(false);
-      resetForm();
-      toast({ title: "Disparo criado!", description: "Pronto para iniciar o envio" });
-    },
-  });
-
-  const startBroadcastMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("POST", `/api/broadcasts/${id}/start`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/broadcasts'] });
-      toast({ title: "Disparo iniciado!", description: "Mensagens sendo enviadas..." });
-    },
-  });
-
-  const pauseBroadcastMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("POST", `/api/broadcasts/${id}/pause`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/broadcasts'] });
-    },
-  });
-
-  const deleteBroadcastMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/broadcasts/${id}`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/broadcasts'] });
-      toast({ title: "Disparo excluído" });
-    },
-  });
-
-  const resetForm = () => {
-    setBroadcastName("");
-    setMessage("");
-    setSelectedDevice("");
-    setSelectedContacts([]);
-    setSelectAll(false);
-    setMediaType("none");
-    setMediaUrl("");
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMediaUrl(reader.result as string);
+    mutationFn: async () => {
+      const payload = {
+        name: campaignName,
+        deviceId: selectedDevice,
+        message: message,
+        contacts: selectedContacts,
+        delay: parseInt(delay),
+        startTime,
+        endTime,
+        daysOfWeek: selectedDays
       };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const filteredContacts = contacts?.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.number.includes(searchTerm)
-  );
-
-  const handleSelectAll = (checked: boolean) => {
-    setSelectAll(checked);
-    if (checked && filteredContacts) {
-      const newIds = filteredContacts.map(c => c.number);
-      setSelectedContacts(prev => {
-        const unique = new Set([...prev, ...newIds]);
-        return Array.from(unique);
-      });
-    } else {
-      if (searchTerm && filteredContacts) {
-        // Uncheck only visible
-        const visibleIds = filteredContacts.map(c => c.number);
-        setSelectedContacts(prev => prev.filter(id => !visibleIds.includes(id)));
-      } else {
-        setSelectedContacts([]);
-      }
-    }
-  };
-
-  const handleContactToggle = (phone: string, checked: boolean) => {
-    if (checked) {
-      setSelectedContacts(prev => {
-        if (prev.includes(phone)) return prev;
-        return [...prev, phone];
-      });
-    } else {
-      setSelectedContacts(prev => prev.filter(p => p !== phone));
-      setSelectAll(false);
-    }
-  };
-
-  // Voice recording handlers
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: BlobPart[] = [];
-
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-
-        // Use Web Speech API for speech-to-text if available
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-          const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-          const recognition = new SpeechRecognition();
-          recognition.lang = 'pt-BR';
-          recognition.continuous = false;
-
-          recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            setAIPrompt(prev => prev ? `${prev} ${transcript}` : transcript);
-          };
-
-          recognition.onerror = () => {
-            toast({
-              title: "Erro no reconhecimento de voz",
-              description: "Não foi possível converter o áudio em texto",
-              variant: "destructive",
-            });
-          };
-        } else {
-          toast({
-            title: "Recurso indisponível",
-            description: "Seu navegador não suporta reconhecimento de voz",
-            variant: "destructive",
-          });
-        }
-
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      setMediaRecorder(recorder);
-      recorder.start();
-      setIsRecording(true);
-    } catch (error) {
+      console.log("Sending payload:", payload);
+      return await apiRequest("POST", "/api/broadcasts", payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/broadcasts'] });
+      toast({ title: "Campanha agendada com sucesso! 🚀" });
+      setCampaignName("");
+      setMessage("");
+      setSelectedContacts([]);
+    },
+    onError: (error) => {
       toast({
-        title: "Erro ao acessar microfone",
-        description: "Verifique as permissões do navegador",
-        variant: "destructive",
+        title: "Erro ao criar campanha",
+        description: "Verifique se preencheu todos os campos.",
+        variant: "destructive"
       });
+      console.error(error);
+    }
+  });
+
+  const toggleDay = (day: string) => {
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter(d => d !== day));
+    } else {
+      setSelectedDays([...selectedDays, day]);
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-      setMediaRecorder(null);
+  const toggleContact = (number: string) => {
+    if (selectedContacts.includes(number)) {
+      setSelectedContacts(selectedContacts.filter(n => n !== number));
+    } else {
+      setSelectedContacts([...selectedContacts, number]);
     }
   };
 
-  const handleCreateBroadcast = () => {
-    console.log("Creating broadcast with:", { broadcastName, selectedDevice, message, contactsCount: selectedContacts.length });
-
-    if (!broadcastName || !selectedDevice || !message || selectedContacts.length === 0) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha todos os campos e selecione pelo menos um contato",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    createBroadcastMutation.mutate({
-      name: broadcastName,
-      deviceId: selectedDevice,
-      message,
-      contacts: selectedContacts,
-      mediaUrl: mediaType !== 'none' ? mediaUrl : undefined,
-      mediaType: mediaType !== 'none' ? mediaType : undefined,
-      delay
-    });
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '14px 16px', borderRadius: '10px',
+    border: `1px solid ${colors.white20}`, background: 'rgba(255, 255, 255, 0.05)',
+    color: colors.white, fontSize: '14px', outline: 'none', boxSizing: 'border-box'
   };
-
-  const getStatusBadge = (status: string) => {
-    const statusMap: any = {
-      pending: { label: "Aguardando", variant: "secondary", icon: Clock },
-      running: { label: "Enviando", variant: "default", icon: Send },
-      paused: { label: "Pausado", variant: "secondary", icon: Pause },
-      completed: { label: "Concluído", variant: "default", icon: CheckCircle },
-      failed: { label: "Falhou", variant: "destructive", icon: XCircle },
-    };
-    return statusMap[status] || statusMap.pending;
-  };
-
-  const connectedDevices = devices?.filter(d => d.connectionStatus === 'connected') || [];
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Disparo em Massa</h1>
-          <p className="text-muted-foreground mt-1">Envie mensagens para múltiplos contatos</p>
-        </div>
+    <div style={{ minHeight: '100vh', background: colors.bg, padding: '24px' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <Link href="/" className="mb-4 inline-block" style={{ color: colors.white40, textDecoration: 'none' }}>← Voltar</Link>
+        <h1 style={{ fontSize: '28px', fontWeight: 700, color: colors.white, margin: '16px 0 8px' }}>Agente de Disparo</h1>
+        <p style={{ color: colors.white60, marginBottom: '32px' }}>Configure campanhas de disparo automático com agendamento inteligente.</p>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-new-broadcast">
-              <Send className="w-4 h-4 mr-2" />
-              Novo Disparo
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Criar Disparo em Massa</DialogTitle>
-              <DialogDescription>
-                Envie mensagens para múltiplos contatos do WhatsApp
-              </DialogDescription>
-            </DialogHeader>
+        <div style={{ background: colors.bgCard, border: `1px solid ${colors.white10}`, borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
 
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="broadcast-name">Nome do Disparo</Label>
-                <Input
-                  id="broadcast-name"
-                  placeholder="Ex: Promoção Black Friday"
-                  value={broadcastName}
-                  onChange={(e) => setBroadcastName(e.target.value)}
-                  data-testid="input-broadcast-name"
-                />
-              </div>
+          {/* Dispositivo */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '8px' }}>Dispositivo Conectado</label>
+            <select
+              value={selectedDevice}
+              onChange={e => setSelectedDevice(e.target.value)}
+              style={{ ...inputStyle, background: '#1e1e24' }}
+            >
+              <option value="">Selecione um dispositivo</option>
+              {devices?.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({d.connectionStatus === 'connected' ? '🟢 Online' : '🔴 Offline'})
+                </option>
+              ))}
+            </select>
+          </div>
 
-              {/* Templates Section */}
-              <div className="flex gap-2 items-end p-3 bg-muted/30 rounded-md border">
-                <div className="flex-1 space-y-2">
-                  <Label className="text-xs text-muted-foreground">Carregar Modelo (Template)</Label>
-                  <Select onValueChange={(val) => {
-                    const t = templates?.find((t: any) => t.id === val);
-                    if (t) setMessage(t.content);
+          <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.white, marginBottom: '20px' }}>Configuração da Campanha</h2>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '8px' }}>Nome da campanha</label>
+            <input type="text" value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="Ex: Black Friday 2026" style={inputStyle} />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '8px' }}>Mensagem</label>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="Digite sua mensagem aqui..."
+              style={{ ...inputStyle, minHeight: '100px', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '8px' }}>Delay entre mensagens (segundos)</label>
+            <input type="number" value={delay} onChange={e => setDelay(e.target.value)} style={{ ...inputStyle, maxWidth: '200px' }} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '8px' }}>Horário início</label>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '8px' }}>Horário fim</label>
+              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', color: colors.white60, fontSize: '14px', marginBottom: '12px' }}>Dias da semana</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, i) => (
+                <button key={i}
+                  onClick={() => toggleDay(day)}
+                  style={{
+                    padding: '8px 16px', borderRadius: '8px',
+                    background: selectedDays.includes(day) ? colors.blue : 'transparent',
+                    border: `1px solid ${selectedDays.includes(day) ? colors.blue : colors.white20}`,
+                    color: colors.white, fontSize: '14px', cursor: 'pointer',
+                    transition: 'all 0.2s'
                   }}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Selecione um modelo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {templates?.map((t: any) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => createTemplateMutation.mutate()}
-                  disabled={!message || createTemplateMutation.isPending}
-                  title="Salvar mensagem atual como modelo"
-                >
-                  Salvar Modelo
-                </Button>
-              </div>
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="device-select">Dispositivo WhatsApp</Label>
-                <Select value={selectedDevice} onValueChange={setSelectedDevice}>
-                  <SelectTrigger id="device-select" data-testid="select-device">
-                    <SelectValue placeholder="Selecione um dispositivo conectado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {connectedDevices.length === 0 ? (
-                      <SelectItem value="none" disabled>Nenhum dispositivo conectado</SelectItem>
-                    ) : (
-                      connectedDevices.map((device) => (
-                        <SelectItem key={device.id} value={device.id}>
-                          {device.name} - {device.phoneNumber}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Seleção de Contatos */}
+          <div style={{ marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 style={{ color: colors.white, fontWeight: 600 }}>Contatos ({selectedContacts.length})</h3>
+              <button
+                onClick={() => setSelectAll(!selectAll)}
+                style={{ color: colors.blue, background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                {selectAll ? 'Desmarcar Todos' : 'Selecionar Todos'}
+              </button>
+            </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="message">Mensagem</Label>
-                  <Button variant="outline" size="sm" onClick={() => setIsAIDialogOpen(true)} data-testid="button-ai-generate">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    IA
-                  </Button>
-                </div>
-                <VoiceEditor
-                  value={message}
-                  onChange={setMessage}
-                  placeholder="Digite a mensagem ou use o microfone para editar (Ex: 'Mude o preço para R$ 10')..."
-                  className="min-h-[120px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Mídia (Opcional)</Label>
-                <Select value={mediaType} onValueChange={(v: any) => setMediaType(v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo de mídia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    <SelectItem value="image">Imagem</SelectItem>
-                    <SelectItem value="video">Vídeo</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {mediaType !== 'none' && (
-                  <div className="space-y-2 mt-2 p-4 border rounded-md bg-muted/20">
-                    <Label>URL ou Upload</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="https://..."
-                        value={mediaUrl.startsWith('data:') ? '' : mediaUrl}
-                        onChange={(e) => setMediaUrl(e.target.value)}
-                        disabled={mediaUrl.startsWith('data:')}
-                      />
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept={mediaType === 'image' ? "image/*" : "video/*"}
-                        onChange={handleFileUpload}
-                      />
-                      <Button
-                        variant="outline"
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Upload
-                      </Button>
-                    </div>
-
-                    {mediaUrl && (
-                      <div className="mt-2">
-                        <p className="text-xs text-muted-foreground mb-1">Preview:</p>
-                        {mediaType === 'image' ? (
-                          <img src={mediaUrl} alt="Preview" className="max-h-40 rounded border" />
-                        ) : (
-                          <video src={mediaUrl} controls className="max-h-40 rounded border" />
-                        )}
-                        {mediaUrl.startsWith('data:') && (
-                          <Button variant="ghost" size="sm" onClick={() => setMediaUrl("")} className="mt-1 text-destructive h-auto p-0">
-                            Remover arquivo
-                          </Button>
-                        )}
-                      </div>
-                    )}
+            {loadingContacts ? (
+              <div className="flex justify-center p-4"><Loader2 className="animate-spin text-white" /></div>
+            ) : (
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {contacts?.map(contact => (
+                  <div key={contact.id} className="flex items-center gap-2 p-2 hover:bg-white/5 rounded">
+                    <Checkbox
+                      checked={selectedContacts.includes(contact.number)}
+                      onCheckedChange={() => toggleContact(contact.number)}
+                    />
+                    <span className="text-sm text-gray-300">{contact.name || contact.number}</span>
+                    <span className="text-xs text-gray-500 ml-auto">{contact.number}</span>
                   </div>
+                ))}
+                {(!contacts || contacts.length === 0) && (
+                  <p className="text-gray-500 text-sm text-center">Nenhum contato encontrado no WhatsApp.</p>
                 )}
               </div>
+            )}
+          </div>
 
-              {selectedDevice && (
-                <>
-                  {/* Delay Slider */}
-                  <div className="space-y-4 p-4 border rounded-md bg-muted/10">
-                    <div className="flex justify-between items-center">
-                      <Label>Intervalo entre mensagens</Label>
-                      <span className="text-sm font-medium text-muted-foreground">{delay} segundos</span>
-                    </div>
-                    <Slider
-                      value={[delay]}
-                      onValueChange={(vals) => setDelay(vals[0])}
-                      min={10}
-                      max={120}
-                      step={5}
-                      className="py-2"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Aumente o intervalo para evitar bloqueios do WhatsApp. Recomendado: 20s+.
-                    </p>
-                  </div>
+          <button
+            onClick={() => createBroadcastMutation.mutate()}
+            disabled={createBroadcastMutation.isPending || !selectedDevice || !message || selectedContacts.length === 0}
+            style={{
+              width: '100%',
+              padding: '14px 28px', borderRadius: '10px', border: 'none',
+              background: `linear-gradient(135deg, ${colors.blue}, #2563eb)`,
+              color: colors.white, fontWeight: 600, cursor: 'pointer',
+              opacity: (createBroadcastMutation.isPending || !selectedDevice) ? 0.7 : 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+            }}>
+            {createBroadcastMutation.isPending ? <Loader2 className="animate-spin" /> : '🚀 Iniciar Campanha'}
+          </button>
+        </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Contatos ({selectedContacts.length} selecionados)</Label>
-                      <div className="relative w-48">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-8 h-9"
-                        />
-                      </div>
-                    </div>
-                    <div className="border rounded-md p-2 h-60 overflow-y-auto space-y-2">
-                      <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
-                        <Checkbox
-                          id="select-all"
-                          checked={selectAll}
-                          onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                        />
-                        <Label htmlFor="select-all" className="cursor-pointer font-medium">
-                          Selecionar Todos {searchTerm && "(Filtrados)"}
-                        </Label>
-                      </div>
-
-                      {loadingContacts ? (
-                        [1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)
-                      ) : filteredContacts && filteredContacts.length > 0 ? (
-                        filteredContacts.map((contact) => (
-                          <div key={contact.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
-                            <Checkbox
-                              id={contact.id}
-                              checked={selectedContacts.includes(contact.number)}
-                              onCheckedChange={(checked) => handleContactToggle(contact.number, checked as boolean)}
-                              data-testid={`checkbox-contact-${contact.number}`}
-                            />
-                            <Label htmlFor={contact.id} className="flex-1 cursor-pointer text-sm">
-                              {contact.name}
-                              <span className="block text-xs text-muted-foreground">{contact.number}</span>
-                            </Label>
-                            {contact.isGroup && <Badge variant="secondary" className="text-xs">Grupo</Badge>}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          Nenhum contato encontrado
-                        </div>
-                      )}
-                    </div>
-
-                    {selectedContacts.length > 0 && (
-                      <p className="text-sm text-muted-foreground">{selectedContacts.length} contato(s) selecionado(s)</p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); resetForm(); }} data-testid="button-cancel">
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleCreateBroadcast}
-                disabled={createBroadcastMutation.isPending || !broadcastName || !selectedDevice || !message || selectedContacts.length === 0}
-                data-testid="button-create-broadcast"
-              >
-                {createBroadcastMutation.isPending ? "Criando..." : "Criar Disparo"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Lista de Campanhas Recentes (Simplificada) */}
+        <div style={{ marginTop: '40px' }}>
+          <h3 style={{ color: colors.white, fontSize: '20px', marginBottom: '16px' }}>Campanhas Recentes</h3>
+          {/* Aqui poderia entrar uma lista das campanhas já criadas */}
+        </div>
       </div>
-
-      {/* AI Dialog */}
-      <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              Gerar Mensagem com IA
-            </DialogTitle>
-            <DialogDescription>
-              Descreva o tipo de mensagem que deseja
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Contexto (Opcional)</Label>
-              <Textarea
-                placeholder="Ex: Lista de produtos: Camisa R$50, Calça R$80..."
-                value={aiContext}
-                onChange={(e) => setAiContext(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Instrução</Label>
-                <Button
-                  variant={isRecording ? "destructive" : "outline"}
-                  size="sm"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  type="button"
-                >
-                  {isRecording ? (
-                    <>
-                      <Square className="w-3 h-3 mr-1 animate-pulse" />
-                      Parar
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-3 h-3 mr-1" />
-                      Gravar
-                    </>
-                  )}
-                </Button>
-              </div>
-              <Textarea
-                placeholder="Ex: Crie uma mensagem de oferta para estes produtos"
-                value={aiPrompt}
-                onChange={(e) => setAIPrompt(e.target.value)}
-                rows={3}
-                data-testid="textarea-ai-prompt"
-              />
-              {isRecording && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  Gravando áudio...
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Ação ao gerar</Label>
-              <RadioGroup value={aiGenerationMode} onValueChange={(v: any) => setAiGenerationMode(v)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="replace" id="mode-replace" />
-                  <Label htmlFor="mode-replace" className="font-normal cursor-pointer">
-                    Substituir mensagem atual
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="append" id="mode-append" />
-                  <Label htmlFor="mode-append" className="font-normal cursor-pointer">
-                    Adicionar ao final da mensagem
-                  </Label>
-                </div>
-              </RadioGroup>
-              {message && aiGenerationMode === "append" && (
-                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                  💡 O conteúdo gerado será adicionado após o texto atual
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAIDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => generateAIMutation.mutate(aiPrompt)}
-              disabled={generateAIMutation.isPending || !aiPrompt}
-              data-testid="button-generate-ai"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              {generateAIMutation.isPending ? "Gerando..." : "Gerar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Broadcasts List */}
-      {
-        loadingBroadcasts ? (
-          <div className="space-y-4">
-            {[1, 2].map(i => <Card key={i}><Skeleton className="h-40 w-full" /></Card>)}
-          </div>
-        ) : broadcasts && broadcasts.length > 0 ? (
-          <div className="space-y-4">
-            {broadcasts.map((broadcast) => {
-              const statusInfo = getStatusBadge(broadcast.status);
-              const progress = broadcast.totalContacts > 0 ? Math.round((broadcast.sentCount / broadcast.totalContacts) * 100) : 0;
-
-              return (
-                <Card key={broadcast.id} data-testid={`broadcast-card-${broadcast.id}`}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <CardTitle className="text-xl">{broadcast.name}</CardTitle>
-                          <Badge variant={statusInfo.variant as any}>
-                            {statusInfo.icon && <statusInfo.icon className="w-3 h-3 mr-1" />}
-                            {statusInfo.label}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-muted p-3 rounded-md">
-                      <p className="text-sm whitespace-pre-wrap">{broadcast.message}</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Progresso</span>
-                        <span className="font-medium">{broadcast.sentCount} / {broadcast.totalContacts}</span>
-                      </div>
-                      <Progress value={progress} className="h-2" />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-2xl font-bold text-primary">{broadcast.totalContacts}</p>
-                        <p className="text-xs text-muted-foreground">Total</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-status-online">{broadcast.sentCount}</p>
-                        <p className="text-xs text-muted-foreground">Enviadas</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-destructive">{broadcast.failedCount}</p>
-                        <p className="text-xs text-muted-foreground">Falhas</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      {broadcast.status === 'pending' && (
-                        <Button size="sm" onClick={() => startBroadcastMutation.mutate(broadcast.id)} disabled={startBroadcastMutation.isPending} data-testid={`button-start-${broadcast.id}`}>
-                          <Play className="w-4 h-4 mr-2" />
-                          Iniciar
-                        </Button>
-                      )}
-                      {broadcast.status === 'running' && (
-                        <Button variant="outline" size="sm" onClick={() => pauseBroadcastMutation.mutate(broadcast.id)} disabled={pauseBroadcastMutation.isPending} data-testid={`button-pause-${broadcast.id}`}>
-                          <Pause className="w-4 h-4 mr-2" />
-                          Pausar
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          resetForm();
-                          setTimeout(() => {
-                            setBroadcastName(`${broadcast.name} (Reenvio)`);
-                            setMessage(broadcast.message);
-                            setSelectedDevice(broadcast.deviceId);
-                            setMediaType(broadcast.mediaType || 'none');
-                            setMediaUrl(broadcast.mediaUrl || '');
-                            setIsCreateDialogOpen(true);
-                          }, 0);
-                        }}
-                        title="Duplicar e Editar"
-                      >
-                        <Copy className="w-4 h-4 mr-2" />
-                        Reenviar
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => deleteBroadcastMutation.mutate(broadcast.id)} disabled={deleteBroadcastMutation.isPending || broadcast.status === 'running'} data-testid={`button-delete-${broadcast.id}`}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Send className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum disparo criado</h3>
-              <p className="text-sm text-muted-foreground text-center mb-6">Crie seu primeiro disparo para enviar mensagens</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-first-broadcast">
-                <Send className="w-4 h-4 mr-2" />
-                Criar Disparo
-              </Button>
-            </CardContent>
-          </Card>
-        )
-      }
-    </div >
+    </div>
   );
 }
