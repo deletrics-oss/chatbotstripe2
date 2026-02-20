@@ -840,9 +840,14 @@ export async function getContactProfilePic(deviceId: string, contactId: string) 
   if (!device) return null;
 
   if (device.integrationType === 'evolution') {
-    // Evolution API doesn't easily provide profile pics via simple REST call 
-    // without more complex setup, stubbing for now to avoid crashes.
-    return null;
+    try {
+      const jid = contactId.includes('@') ? contactId : `${contactId}@c.us`;
+      const result = await evolutionRequest(`/chat/fetchProfilePicture/${deviceId}`, 'POST', { number: jid });
+      return result?.profilePicUrl || result?.url || null;
+    } catch (e) {
+      console.error(`[Evolution] Error fetching profile pic for ${contactId}:`, e);
+      return null;
+    }
   }
 
   const client = getClient(deviceId);

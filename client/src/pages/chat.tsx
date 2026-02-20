@@ -1,289 +1,377 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Send, Search, MoreVertical } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  User, Image as ImageIcon, Video, FileText, Bot,
+  Maximize2, Headphones, Download, Info, Facebook, Instagram, RefreshCw, Search, Smartphone, MessageSquare, Send
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Conversation, Message } from "@shared/schema";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { queryClient } from "@/lib/queryClient";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Conversation, Message } from "@shared/schema";
 
-function ContactAvatar({ deviceId, contactId, name, className }: { deviceId: string, contactId: string, name: string, className?: string }) {
-  const { data } = useQuery({
-    queryKey: ['/api/whatsapp/contacts', deviceId, contactId, 'pic'],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/whatsapp/contacts/${deviceId}/${contactId}/pic`);
-      return res.json();
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-    enabled: !!deviceId && !!contactId
-  });
-
-  return (
-    <Avatar className={className}>
-      <AvatarImage src={data?.url} alt={name} />
-      <AvatarFallback>{name[0]}</AvatarFallback>
-    </Avatar>
-  );
-}
-
-export default function Chat() {
+export default function ChatPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("all");
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const { toast } = useToast();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [tempAvatar, setTempAvatar] = useState<Record<string, string>>({});
+  const [isSyncingAvatar, setIsSyncingAvatar] = useState(false);
 
-  const { data: conversations, isLoading: conversationsLoading } = useQuery<Conversation[]>({
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  // Fetch conversations
+  const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ['/api/conversations'],
+    refetchInterval: 5000,
   });
 
-  const { data: messages, isLoading: messagesLoading } = useQuery<Message[]>({
+  // Fetch available devices
+  const { data: devices = [] } = useQuery<any[]>({
+    queryKey: ['/api/devices'],
+  });
+
+  // Fetch messages for selected conversation
+  const { data: messages = [], isLoading: messagesLoading } = useQuery<Message[]>({
     queryKey: ['/api/conversations', selectedConversationId, 'messages'],
     enabled: !!selectedConversationId,
+    refetchInterval: 3000,
   });
 
-  // Auto-scroll to bottom when messages change
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+
+  const filteredConversations = conversations.filter(c => {
+    if (selectedDeviceId !== "all" && c.deviceId !== selectedDeviceId) return false;
+    const nameMatch = (c.contactName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    const phoneMatch = (c.contactPhone || '').includes(searchQuery);
+    return nameMatch || phoneMatch;
+  });
+
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   useEffect(() => {
-    if (messages && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages?.length > 0) {
+      scrollToBottom();
     }
   }, [messages]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      return await apiRequest("POST", `/api/conversations/${selectedConversationId}/messages`, {
-        content,
-        direction: 'outgoing',
-        isFromBot: false,
+      if (!selectedConversationId) return;
+      const res = await fetch(`/api/conversations/${selectedConversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, direction: 'outgoing' })
       });
+      if (!res.ok) throw new Error('Failed to send');
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/conversations', selectedConversationId, 'messages'] });
       setMessageText("");
     },
     onError: () => {
-      toast({
-        title: "Erro",
-        description: "Não foi possível enviar a mensagem",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao enviar mensagem", variant: "destructive" });
     },
   });
 
-  const filteredConversations = conversations?.filter((conv) =>
-    conv.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.contactPhone.includes(searchQuery)
-  ) || [];
-
-  const selectedConversation = conversations?.find(c => c.id === selectedConversationId);
+  const syncAvatar = async (conversationId: string) => {
+    setIsSyncingAvatar(true);
+    try {
+      const res = await fetch(`/api/whatsapp/sync-profile-pic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId })
+      });
+      const data = await res.json();
+      if (data.url) {
+        setTempAvatar(prev => ({ ...prev, [conversationId]: data.url }));
+        toast({ title: "Avatar atualizado!" });
+      } else {
+        toast({ title: "Não foi possível buscar o avatar", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Erro ao buscar avatar", variant: "destructive" });
+    } finally {
+      setIsSyncingAvatar(false);
+    }
+  };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Conversations List */}
-      <div className="w-full md:w-96 border-r border-border flex flex-col">
-        <div className="p-4 border-b border-border">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar conversas..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-              data-testid="input-search-conversations"
-            />
+    <div className="flex h-[calc(100vh-4rem)] bg-background">
+      {/* Sidebar List */}
+      <div className={cn(
+        "w-full md:w-[380px] border-r border-border flex flex-col bg-card/50",
+        selectedConversationId ? "hidden md:flex" : "flex"
+      )}>
+        <div className="p-4 space-y-4 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold tracking-tight">Conversas</h2>
+            <Button variant="ghost" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/conversations'] })}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar contato..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-background/50"
+              />
+            </div>
+
+            <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+              <SelectTrigger className="w-full bg-background/50">
+                <div className="flex items-center gap-2 truncate">
+                  <Smartphone className="w-4 h-4 shrink-0" />
+                  <SelectValue placeholder="Todos os aparelhos" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os aparelhos</SelectItem>
+                {devices.map(d => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {conversationsLoading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-3">
-                  <Skeleton className="w-12 h-12 rounded-full" />
-                  <div className="flex-1">
-                    <Skeleton className="h-4 w-32 mb-2" />
-                    <Skeleton className="h-3 w-48" />
-                  </div>
-                </div>
-              ))}
+            <div className="p-4 space-y-4">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
             </div>
           ) : filteredConversations.length > 0 ? (
-            <div className="p-2">
-              {filteredConversations.map((conversation) => (
+            <div className="divide-y divide-border/50">
+              {filteredConversations.map(conv => (
                 <button
-                  key={conversation.id}
-                  onClick={() => setSelectedConversationId(conversation.id)}
+                  key={conv.id}
+                  onClick={() => setSelectedConversationId(conv.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 p-3 rounded-lg hover-elevate active-elevate-2 text-left",
-                    selectedConversationId === conversation.id && "bg-accent"
+                    "w-full flex items-center gap-4 p-4 hover:bg-accent/50 transition-all text-left group relative",
+                    selectedConversationId === conv.id && "bg-accent shadow-inner"
                   )}
-                  data-testid={`conversation-item-${conversation.id}`}
                 >
-                  <ContactAvatar
-                    deviceId={conversation.deviceId}
-                    contactId={conversation.contactPhone}
-                    name={conversation.contactName}
-                    className="h-12 w-12"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="font-medium truncate">{conversation.contactName}</p>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }) : ''}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm text-muted-foreground truncate">
-                        {conversation.contactPhone}
-                      </p>
-                      {conversation.unreadCount > 0 && (
-                        <Badge variant="default" className="shrink-0 h-5 min-w-5 px-1.5">
-                          {conversation.unreadCount}
-                        </Badge>
-                      )}
+                  <div className="relative">
+                    <Avatar className="h-14 w-14 border-2 border-background shadow-md">
+                      <AvatarImage src={tempAvatar[conv.id] || ''} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                        {conv.contactName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-background bg-white flex items-center justify-center">
+                      <Smartphone className="w-3 h-3 text-green-500 fill-green-500" />
                     </div>
                   </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="font-bold truncate group-hover:text-primary transition-colors text-foreground">
+                        {conv.contactName}
+                      </p>
+                      {conv.lastMessageAt && (
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
+                          {new Date(conv.lastMessageAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="truncate">{conv.contactPhone}</span>
+                    </div>
+                  </div>
+
+                  {conv.unreadCount > 0 && (
+                    <div className="ml-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-primary-foreground">{conv.unreadCount}</span>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                {searchQuery ? "Nenhuma conversa encontrada" : "Nenhuma conversa ainda"}
-              </p>
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-50">
+              <MessageSquare className="w-12 h-12 mb-4" />
+              <p className="text-sm font-medium">Nenhuma conversa encontrada</p>
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* Chat Window */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Chat View */}
+      <div className={cn(
+        "flex-1 flex flex-col relative",
+        !selectedConversationId && "hidden md:flex bg-muted/20"
+      )}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ContactAvatar
-                  deviceId={selectedConversation.deviceId}
-                  contactId={selectedConversation.contactPhone}
-                  name={selectedConversation.contactName}
-                />
+            <div className="h-20 border-b bg-card flex items-center justify-between px-6 shadow-sm z-10">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  onClick={() => setSelectedConversationId(null)}
+                >
+                  <Search className="h-5 w-5 rotate-180" />
+                </Button>
+                <Avatar className="h-12 w-12 border-2 border-primary/20">
+                  <AvatarImage src={tempAvatar[selectedConversation.id] || ''} />
+                  <AvatarFallback>{selectedConversation.contactName.charAt(0)}</AvatarFallback>
+                </Avatar>
                 <div>
-                  <p className="font-medium" data-testid="text-contact-name">
-                    {selectedConversation.contactName}
-                  </p>
-                  <p className="text-sm text-muted-foreground" data-testid="text-contact-phone">
-                    {selectedConversation.contactPhone}
-                  </p>
+                  <p className="font-bold leading-none mb-1 text-foreground">{selectedConversation.contactName}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px] h-4 uppercase font-bold py-0 bg-green-50 text-green-600 border-green-200">WhatsApp</Badge>
+                    <span>{selectedConversation.contactPhone}</span>
+                  </div>
                 </div>
               </div>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="w-5 h-5" />
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => syncAvatar(selectedConversation.id)}
+                  disabled={isSyncingAvatar}
+                >
+                  <RefreshCw className={cn("w-4 h-4 mr-2", isSyncingAvatar && "animate-spin")} />
+                  Sync Photo
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Info className="w-5 h-5 text-muted-foreground" />
+                </Button>
+              </div>
             </div>
 
             {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-white shadow-inner">
               {messagesLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-3/4" />
-                  ))}
-                </div>
-              ) : messages && messages.length > 0 ? (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex",
-                        message.direction === 'outgoing' ? "justify-end" : "justify-start"
-                      )}
-                      data-testid={`message-${message.id}`}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-md rounded-2xl px-4 py-2",
-                          message.direction === 'outgoing'
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        )}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <div className="flex items-center justify-between gap-2 mt-1">
-                          <span className="text-xs opacity-70">
-                            {new Date(message.timestamp).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          {message.isFromBot && (
-                            <Badge variant="secondary" className="h-4 text-xs px-1">
-                              Bot
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
+                <div className="space-y-6">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className={cn("flex", i % 2 === 0 ? "justify-end" : "justify-start")}>
+                      <Skeleton className="h-16 w-[280px] rounded-2xl" />
                     </div>
                   ))}
-                  {/* Auto-scroll target */}
-                  <div ref={messagesEndRef} />
                 </div>
+              ) : messages.length > 0 ? (
+                <>
+                  {messages.map((msg, idx) => {
+                    const isOutgoing = msg.direction === 'outgoing';
+                    return (
+                      <div key={msg.id} className={cn("flex", isOutgoing ? "justify-end" : "justify-start")}>
+                        <div className={cn(
+                          "max-w-[85%] md:max-w-[70%] rounded-2xl p-4 shadow-sm",
+                          isOutgoing
+                            ? "bg-primary text-primary-foreground rounded-br-none"
+                            : "bg-muted text-foreground rounded-bl-none border"
+                        )}>
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                          <div className={cn(
+                            "flex items-center gap-2 mt-2",
+                            isOutgoing ? "justify-end" : "justify-start"
+                          )}>
+                            <span className="text-[10px] opacity-60 font-medium">
+                              {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {msg.isFromBot && (
+                              <Badge variant="secondary" className="text-[9px] h-3.5 px-1 py-0 uppercase">
+                                Bot
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </>
               ) : (
-                <div className="flex items-center justify-center h-full text-center">
-                  <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda</p>
+                <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-30">
+                  <MessageSquare className="w-10 h-10" />
+                  <p className="text-sm font-medium italic">Nenhuma mensagem ainda</p>
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
-            {/* Message Input */}
-            <div className="p-4 border-t border-border">
+            {/* Input Area */}
+            <div className="p-4 md:p-6 bg-card border-t border-border z-10 shadow-lg">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (messageText.trim()) {
-                    sendMessageMutation.mutate(messageText);
-                  }
+                  if (messageText.trim()) sendMessageMutation.mutate(messageText);
                 }}
-                className="flex gap-2"
+                className="flex items-center gap-3 max-w-5xl mx-auto"
               >
                 <Input
-                  placeholder="Digite sua mensagem..."
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  className="flex-1"
-                  data-testid="input-message"
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1 bg-muted/50 border-none rounded-full h-12 px-6"
                 />
                 <Button
                   type="submit"
+                  size="icon"
+                  className="h-12 w-12 rounded-full shadow-lg shrink-0"
                   disabled={!messageText.trim() || sendMessageMutation.isPending}
-                  data-testid="button-send-message"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-5 h-5" />
                 </Button>
               </form>
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-2">
-              <p className="text-lg font-medium">Selecione uma conversa</p>
-              <p className="text-sm text-muted-foreground">
-                Escolha uma conversa na lista para começar
-              </p>
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-muted/5">
+            <div className="w-32 h-32 bg-card rounded-3xl shadow-2xl flex items-center justify-center border border-primary/10 mb-8">
+              <Bot className="w-16 h-16 text-primary" />
             </div>
+            <h3 className="text-2xl font-bold tracking-tight mb-2 text-foreground">Central de Atendimento</h3>
+            <p className="max-w-xs text-muted-foreground mx-auto text-sm">
+              Selecione um cliente na lista ao lado para iniciar uma conversa.
+            </p>
           </div>
         )}
       </div>
     </div>
   );
+}
+
+function RefreshCw(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M3 3v5h5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M21 21v-5h-5" />
+    </svg>
+  )
 }

@@ -3747,6 +3747,23 @@ Responda APENAS com o prompt melhorado em inglês (max 150 palavras).`;
     }
   });
 
+  app.post('/api/whatsapp/sync-profile-pic', isAuthenticated, async (req: any, res) => {
+    try {
+      const { conversationId } = req.body;
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+
+      const url = await whatsappManager.getContactProfilePic(conversation.deviceId, conversation.contactPhone);
+      if (url) {
+        await storage.updateConversation(conversationId, { contactProfilePic: url });
+      }
+      res.json({ url });
+    } catch (error) {
+      console.error("[Chat] Error syncing profile pic:", error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   app.get('/api/admin/system-logs', isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const filters: any = {

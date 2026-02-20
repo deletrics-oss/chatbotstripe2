@@ -5,7 +5,11 @@ import puppeteer from "puppeteer";
 async function scrapeUrl(url: string): Promise<string> {
     console.log(`[AI Scraper] Scraping URL: ${url}`);
     try {
-        const browser = await puppeteer.launch({ headless: true });
+        const browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+        });
         const page = await browser.newPage();
         // Set user agent to avoid bot detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
