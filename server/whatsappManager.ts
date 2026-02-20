@@ -757,13 +757,25 @@ export async function setEvolutionSettings(deviceId: string, settings: any) {
 }
 export async function getEvolutionContacts(deviceId: string) {
   console.log(`[Evolution] Fetching contacts for ${deviceId}...`);
-  // Evolution v2.x Contacts Endpoint: /contact/fetchContacts/:instance
+  // Try Evolution v2.x Contacts Endpoint: /contact/fetchContacts/:instance
   try {
     const contacts = await evolutionRequest(`/contact/fetchContacts/${deviceId}`, 'GET');
-    console.log(`[Evolution] Fetched contacts for ${deviceId}:`, Array.isArray(contacts) ? contacts.length : 'Not an array');
+    console.log(`[Evolution] Fetched contacts for ${deviceId} (v2):`, Array.isArray(contacts) ? contacts.length : 'Not an array');
     return contacts;
-  } catch (err) {
-    console.error(`[Evolution] Error fetching contacts for ${deviceId}:`, err);
+  } catch (err: any) {
+    // If v2 endpoint not found, try Legacy v1.x Endpoint: /contact/findAll/:instance
+    if (err.message && err.message.includes('404')) {
+      console.log(`[Evolution] v2 contact endpoint not found, trying v1/legacy fallback for ${deviceId}...`);
+      try {
+        const contacts = await evolutionRequest(`/contact/findAll/${deviceId}`, 'GET');
+        console.log(`[Evolution] Fetched contacts for ${deviceId} (v1):`, Array.isArray(contacts) ? contacts.length : 'Not an array');
+        return contacts;
+      } catch (fallbackErr) {
+        console.error(`[Evolution] Both contact endpoints failed for ${deviceId}:`, fallbackErr);
+      }
+    } else {
+      console.error(`[Evolution] Error fetching contacts for ${deviceId}:`, err);
+    }
     return [];
   }
 }
