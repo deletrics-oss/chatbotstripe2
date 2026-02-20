@@ -13,19 +13,19 @@ const isReplit = process.env.REPL_ID !== undefined;
 if (isReplit) {
   // In Replit, secrets are stored in JSON format in /tmp/.secrets
   const secretsPath = '/tmp/.secrets';
-  
+
   try {
     if (fs.existsSync(secretsPath)) {
       const secretsData = fs.readFileSync(secretsPath, 'utf8');
       const secrets = JSON.parse(secretsData);
-      
+
       // Load all secrets into process.env
       for (const [key, value] of Object.entries(secrets)) {
         if (!process.env[key]) {
           process.env[key] = String(value);
         }
       }
-      
+
       console.log('[loadEnv] Loaded secrets from Replit');
     } else {
       console.warn('[loadEnv] No secrets file found at /tmp/.secrets');
@@ -73,15 +73,25 @@ console.log('[loadEnv] PGDATABASE:', process.env.PGDATABASE || 'EMPTY');
 console.log('[loadEnv] PGPORT:', process.env.PGPORT || 'EMPTY');
 console.log('[loadEnv] PGPASSWORD:', process.env.PGPASSWORD ? '***' : 'EMPTY');
 
+// Debug AI keys
+const gKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+if (gKey) {
+  console.log('[loadEnv] ✅ AI API Key found (length:', gKey.length, ')');
+  if (gKey.trim() === "") console.warn('[loadEnv] ⚠️ AI API Key is an EMPTY STRING');
+  if (gKey === "undefined") console.warn('[loadEnv] ⚠️ AI API Key is literal string "undefined"');
+} else {
+  console.error('[loadEnv] ❌ NO AI API Key (GEMINI_API_KEY or GOOGLE_API_KEY) found');
+}
+
 // If DATABASE_URL is empty but PG* variables exist, construct it
 if (!process.env.DATABASE_URL || process.env.DATABASE_URL.trim() === '') {
   const { PGUSER, PGPASSWORD, PGHOST, PGPORT, PGDATABASE } = process.env;
-  
+
   if (PGUSER && PGHOST && PGDATABASE) {
     const password = PGPASSWORD || '';
     const port = PGPORT || '5432';
     const host = PGHOST || 'localhost';
-    
+
     // Construct PostgreSQL connection string
     process.env.DATABASE_URL = `postgresql://${PGUSER}:${password}@${host}:${port}/${PGDATABASE}`;
     console.log('[loadEnv] Constructed DATABASE_URL from PG* variables');

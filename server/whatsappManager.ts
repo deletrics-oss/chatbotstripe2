@@ -5,6 +5,7 @@ import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { logSystemEvent } from "./logManager";
 import { getAI } from "./ai";
+import { classifySDRIntent, generateSDRResponse, type SDRConfig } from "./aiService";
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
 export { MessageMedia };
@@ -435,7 +436,7 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
   if (!logic) { console.log(`[Bot] ❌ Logic ${device.activeLogicId} not found in database`); return; }
   if (!logic.isActive) { console.log(`[Bot] ❌ Logic ${logic.id} is NOT active (isActive=false)`); return; }
   // Check logicType before validating logicJson for AI types
-  if (logic.logicType === 'ai' || logic.logicType === 'hybrid') {
+  if (logic.logicType === 'ai' || logic.logicType === 'hybrid' || logic.logicType === 'sdr') {
     // Basic validation for hybrid/ai - prompts are stored in file, so logicJson might be empty
     // We proceed to AI execution directly if it's 'ai' type
     if (logic.logicType === 'ai') {
@@ -501,6 +502,64 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
           console.error(`[Bot] ❌ AI Execution failed:`, err);
           // Fallback to error message
         }
+      }
+    } else if (logic.logicType === 'sdr') {
+      console.log(`[Bot] 🤖 Executing Humanized SDR Logic: "${logic.name}"`);
+      try {
+        const user = await storage.getUser(logic.userId);
+        const conversations = await storage.getConversations(deviceId);
+        let conversation = conversations.find(c => c.contactPhone === contactNumber);
+
+        if (!conversation) {
+          conversation = await storage.createConversation({
+            deviceId,
+            contactName: contactNumber,
+            contactPhone: contactNumber,
+            isActive: true,
+            unreadCount: 0,
+          });
+        }
+
+        // Fetch recent messages for history (last 10)
+        const allMessages = await storage.getMessages(conversation.id);
+        const recentMessages = allMessages.slice(-10).map(m => ({
+          role: m.direction === 'incoming' ? 'user' : 'assistant' as 'user' | 'assistant',
+          content: m.content
+        }));
+
+        const sdrConfig: SDRConfig = (logic.logicJson as any) || {
+          product: logic.description || "nossos serviços",
+          tone: 'professional',
+          includeEmoji: true
+        };
+
+        // 1. Classify Intent
+        const classification = await classifySDRIntent(
+          conversation.contactName,
+          recentMessages,
+          messageBody,
+          sdrConfig.product,
+          user?.geminiApiKey
+        );
+
+        console.log(`[Bot] 🧠 SDR Intent: ${classification.intent} (${classification.confidence})`);
+
+        // 2. Generate Humanized Response
+        const aiReply = await generateSDRResponse(
+          conversation.contactName,
+          recentMessages,
+          messageBody,
+          sdrConfig,
+          classification.intent,
+          user?.geminiApiKey
+        );
+
+        console.log(`[Bot] 🤖 SDR replied: "${aiReply.substring(0, 80)}"`);
+        await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
+        await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
+        return;
+      } catch (err) {
+        console.error(`[Bot] ❌ SDR Execution failed:`, err);
       }
     }
   }

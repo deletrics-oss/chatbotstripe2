@@ -965,6 +965,8 @@ export class MemStorage implements IStorage {
       isFromBot: message.isFromBot || false,
       timestamp: message.timestamp || new Date(),
       createdAt: new Date(),
+      mediaUrls: message.mediaUrls || null,
+      mediaTypes: message.mediaTypes || null,
     };
     this.messages.set(newMessage.id, newMessage);
 
@@ -1249,6 +1251,8 @@ export class MemStorage implements IStorage {
       ...template,
       id,
       createdAt: new Date(),
+      mediaUrls: template.mediaUrls || null,
+      mediaTypes: template.mediaTypes || null,
     };
     this.broadcastTemplates.set(id, newTemplate);
     this.saveData();

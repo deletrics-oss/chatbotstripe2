@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog, Crown } from "lucide-react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog, Crown, Sparkles } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -42,6 +42,11 @@ const menuItems = [
     title: "Lógicas",
     url: "/logic",
     icon: FileJson,
+  },
+  {
+    title: "Lógica Humana",
+    url: "/sdr",
+    icon: Sparkles,
   },
   {
     title: "Base de Conhecimento",

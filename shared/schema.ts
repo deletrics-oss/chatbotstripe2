@@ -147,7 +147,7 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 // ============ LOGIC CONFIGS (JSON CHATBOT LOGIC) ============
 
-export const logicTypeEnum = pgEnum('logic_type', ['json', 'ai', 'hybrid']);
+export const logicTypeEnum = pgEnum('logic_type', ['json', 'ai', 'hybrid', 'sdr']);
 
 export const logicConfigs = pgTable("logic_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -157,7 +157,7 @@ export const logicConfigs = pgTable("logic_configs", {
   description: text("description"),
   logicType: logicTypeEnum("logic_type").notNull().default('json'),
   logicJson: jsonb("logic_json").notNull(),
-  behaviorConfigId: varchar("behavior_config_id"), // Comportamento do bot para AI/Hybrid
+  behaviorConfigId: varchar("behavior_config_id"), // Comportamento do bot para AI/Hybrid/SDR
   isActive: boolean("is_active").notNull().default(true),
   isTemplate: boolean("is_template").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -169,7 +169,7 @@ export const insertLogicConfigSchema = createInsertSchema(logicConfigs).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
-  logicType: z.enum(['json', 'ai', 'hybrid']).default('json'), // Explicitly require and default to 'json'
+  logicType: z.enum(['json', 'ai', 'hybrid', 'sdr']).default('json'), // Explicitly require and default to 'json'
   logicJson: z.record(z.any()),
 });
 

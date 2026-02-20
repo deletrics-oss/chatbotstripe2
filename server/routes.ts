@@ -19,7 +19,7 @@ import puppeteer from "puppeteer";
 import { LOGIC_TEMPLATES } from "./templates";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getAI } from "./ai";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -36,30 +36,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-11-17.clover" })
   : null;
 
-// Initialize Gemini AI
-let aiInstance: GoogleGenAI | null = null;
-const userAiInstances = new Map<string, GoogleGenAI>();
-
-function getAI(userApiKey?: string | null): GoogleGenAI | null {
-  // If user provided their own key, use it
-  if (userApiKey) {
-    if (userAiInstances.has(userApiKey)) {
-      return userAiInstances.get(userApiKey)!;
-    }
-    const userAi = new GoogleGenAI({ apiKey: userApiKey });
-    userAiInstances.set(userApiKey, userAi);
-    return userAi;
-  }
-
-  // Otherwise, use system key
-  if (aiInstance) return aiInstance;
-
-  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
-    aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "" });
-    return aiInstance;
-  }
-  return null;
-}
+// Google AI instances are managed in ./ai.ts
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Evolution API Webhook (Public) - supports both direct and webhookByEvents format
@@ -3202,11 +3179,10 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
   app.post('/api/ai/generate-logic', isAuthenticated, async (req: any, res) => {
     try {
       const { prompt, sourceType, sourceContent } = req.body;
+      const user = await storage.getUser(req.user.id);
+      const ai = await getAI(user?.geminiApiKey);
 
-      const ai = await getAI();
-      if (!ai) {
-        return res.status(503).json({ message: "AI service not configured" });
-      }
+      if (!ai) return res.status(503).json({ message: "AI service not configured" });
 
       let context = "";
       if (sourceType === 'url' && sourceContent) {
@@ -3219,71 +3195,52 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
           });
           const page = await browser.newPage();
           await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-          console.log(`[AI] Navigating to URL...`);
           await page.goto(sourceContent, { waitUntil: 'networkidle2', timeout: 30000 });
-          console.log(`[AI] Extracting text content...`);
           context = await page.evaluate(() => document.body.innerText);
           await browser.close();
-          context = context.slice(0, 10000); // Limit context size
-          console.log(`[AI] Successfully scraped ${context.length} characters from URL`);
+          context = context.slice(0, 10000);
         } catch (e: any) {
           console.error("[AI] Scraping error:", e.message);
           if (browser) await browser.close().catch(() => { });
-          return res.status(400).json({
-            message: `Erro ao acessar o site: ${e.message}. Verifique se a URL está correta e acessível.`
-          });
         }
       } else if (sourceType === 'text') {
         context = sourceContent;
       }
 
-      const systemPrompt = `
-        You are an expert chatbot logic generator.
+      const systemPrompt = `Você é um Arquiteto de Chatbots especializado em Vendas por WhatsApp.
         
-        CONTEXT FROM WEBSITE:
-        ${context ? context.slice(0, 10000) : "No website context provided."}
+        CONTEXTO DO NEGÓCIO (Do site ou texto fornecido):
+        ${context ? context.slice(0, 10000) : "Nenhum contexto fornecido."}
         
-        USER REQUEST: ${prompt}
+        MISSÃO: Criar um atendente inteligente (Pure AI) focado em vender e ser direto.
         
-        TASK: Create a JSON chatbot configuration for this specific business.
+        REGRAS PARA A PERSONA (ai_sys_prompt):
+        1. **BREVIDADE:** Respostas curtas (max 2-3 frases). Nada de textos longos.
+        2. **DIRETO AO PONTO:** Responda o que o cliente quer imediatamente.
+        3. **FOCO EM VENDAS:** Se o negócio vende algo (como GÁS), foque em fechar a venda usando os preços encontrados no contexto.
+        4. **LINGUAGEM:** Use uma linguagem de atendente prestativo.
         
-        CRITICAL RULES:
-        1. You MUST use the "CONTEXT FROM WEBSITE" above to extract:
-           - Real company name
-           - Real phone numbers and emails
-           - Real product names
-           - Real address
-        
-        2. Do NOT create generic rules. Create specific rules based on the website content.
-        
-        3. If the website lists products, create a rule for "produtos" listing 3-4 specific items found.
-        
-        4. If the website has contact info, create a rule for "contato" with the real data.
-        
-        5. Structure the response as valid JSON matching this interface:
-        interface LogicJson {
-          default_reply: string;
-          pause_bot_after_reply?: boolean;
-          rules: {
-            keywords: string[];
-            reply: string;
-            pause_bot_after_reply?: boolean;
-            mediaUrl?: string;
-            mediaType?: 'image' | 'video' | 'audio' | 'document';
-          }[];
+        INTERFACE OBRIGATÓRIA (JSON):
+        {
+          "default_reply": "Olá! Como posso ajudar você hoje?",
+          "fallback_to_ai": true,
+          "ai_sys_prompt": "[COLOQUE O PROMPT DA PERSONA AQUI]",
+          "rules": []
         }
 
-        Output ONLY valid JSON.
+        Saída APENAS em JSON válido.
       `;
 
       const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: systemPrompt,
+        model: "gemini-2.0-flash",
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+        },
+        contents: "Gere a configuração do Atendente em JSON.",
       });
 
       const text = result.text || "";
-
-      // Clean up markdown if present
       const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const logicJson = JSON.parse(jsonStr);
 
@@ -3332,44 +3289,36 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       }
 
       const systemPrompt = `
-        Você é um Arquiteto Sênior de Chatbots (AI Bot Architect).
-        Sua missão é garantir que a lógica do chatbot seja PERFEITA, robusta e à prova de falhas.
+        Você é um Arquiteto Sênior de Chatbots focado em Conversão e Vendas.
+        Sua missão é atualizar a lógica do chatbot para ser altamente eficiente e DIRETA.
         
-        CONTEXTO ADICIONAL (Site/Texto):
+        CONTEXTO ADICIONAL:
         ${context ? context.slice(0, 10000) : "Nenhum contexto externo fornecido."}
         
-        LÓGICA ATUAL DO CHATBOT:
+        LÓGICA ATUAL:
         ${JSON.stringify(currentJson, null, 2)}
 
-        SOLICITAÇÃO DO USUÁRIO (CLIENTE FINAL): ${prompt}
+        PEDIDO DO CLIENTE: ${prompt}
         
-        PREFERÊNCIA DE EMOJIS: ${useEmojis ? "Sim, use emojis para tornar as respostas amigáveis." : "Não, mantenha o tone formal sem emojis."}
-        
-        SUAS DIRETRIZES DE "ARQUITETO SÊNIOR":
-        1. **INTERPRETAÇÃO DE INTENÇÃO:** O usuário final pode não saber termos técnicos. Se ele disser "o bot travou", verifique se falta um loop de volta ao menu. Se ele disser "não acha o produto", verifique as keywords.
-        2. **CORREÇÃO PROATIVA:** Não faça apenas o que foi pedido. Se você ver um erro óbvio na lógica (ex: um menu sem opção de voltar, ou uma regra sem resposta), CORRIJA-O silenciosamente.
-        3. **PRESERVAÇÃO INTELIGENTE:** Nunca apague o trabalho duro do cliente (produtos, textos longos) a menos que seja explicitamente para substituir.
-        4. **ENRIQUECIMENTO DE DADOS:** Use o contexto (site) para preencher lacunas. Se o cliente pedir "adicione contato", busque o telefone real no contexto.
+        DIRETRIZES DE OURO:
+        1. **LEI DA BREVIDADE:** Reduza respostas longas. O cliente no WhatsApp quer rapidez. Use no máximo 2-3 frases.
+        2. **FOCO NO GÁS/PRODUTO:** Se o pedido for sobre vendas (ex: Gás), use os preços do contexto e seja agressivo na venda direta.
+        3. **PRESERVAÇÃO DA PERSONA:** Mantenha sempre o campo 'ai_sys_prompt' com instruções de "Seja breve e direto".
+        4. **JSON INTEGRAL:** Retorne sempre o objeto completo com 'default_reply', 'rules', 'ai_sys_prompt' e 'fallback_to_ai'.
         
         INTERFACE OBRIGATÓRIA (JSON):
         interface LogicJson {
           default_reply: string;
-          pause_bot_after_reply?: boolean;
-          fallback_to_ai?: boolean; // Se deve usar IA quando nenhuma keyword bater
-          ai_sys_prompt?: string; // A persona/prompt do bot
+          fallback_to_ai: boolean;
+          ai_sys_prompt: string; // PERSONA DETALHADA AQUI
           rules: {
             keywords: string[];
             reply: string;
-            pause_bot_after_reply?: boolean;
-            mediaUrl?: string; // URL da imagem/vídeo se houver
-            mediaType?: 'image' | 'video' | 'audio' | 'document';
-            set_conversation_state?: string; // Opcional, para fluxos complexos
+            // ... campos opcionais
           }[];
         }
 
-        IMPORTANTE: Se a LÓGICA ATUAL já contiver 'ai_sys_prompt' ou 'fallback_to_ai', MANTENHA-OS no JSON de saída, a menos que o usuário peça explicitamente para mudar a persona.
-
-        Responda APENAS com o JSON válido e formatado.
+        Responda APENAS com o JSON válido.
       `;
 
       const result = await ai.models.generateContent({

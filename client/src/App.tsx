@@ -26,6 +26,7 @@ import Broadcast from "@/pages/broadcast";
 import WebAssistants from "@/pages/web-assistants";
 import PublicChat from "@/pages/public-chat";
 import SuperAdmin from "@/pages/super-admin";
+import SDREditor from "@/pages/sdr-editor";
 
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -81,6 +82,7 @@ function AppContent() {
               <Route path="/devices" component={Devices} />
               <Route path="/chat" component={Chat} />
               <Route path="/logic" component={LogicEditor} />
+              <Route path="/sdr" component={SDREditor} />
               <Route path="/knowledge/new" component={KnowledgeEditor} />
               <Route path="/knowledge/:id" component={KnowledgeEditor} />
               <Route path="/knowledge" component={Knowledge} />
