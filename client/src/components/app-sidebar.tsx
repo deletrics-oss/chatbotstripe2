@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog, Crown, Sparkles, Cloud, CloudCheck } from "lucide-react";
+import { Home, MessageSquare, Smartphone, FileJson, Send, CreditCard, Settings, LogOut, BookOpen, Brain, Globe, Clock, Cog, Crown, Sparkles, Cloud, Check } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -131,7 +131,7 @@ export function AppSidebar() {
               <span>ChatBot Cloud</span>
             </div>
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CloudCheck className="w-3 h-3" /> VPS Active
+              <Check className="w-3 h-3" /> VPS Active
             </span>
           </SidebarGroupLabel>
           <SidebarGroupContent>
