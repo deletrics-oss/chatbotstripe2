@@ -3508,6 +3508,45 @@ REGRAS OBRIGATÓRIAS:
     }
   });
 
+  // Gemini Prompt Creator Assistant Endpoint
+  app.post('/api/ai/assist-prompt', isAuthenticated, async (req: any, res) => {
+    try {
+      const { businessDescription, objective, currentPrompt } = req.body;
+      const user = await storage.getUser(req.user.id);
+      const ai = await getAI(user?.geminiApiKey);
+
+      if (!ai) {
+        return res.status(503).json({ message: "Serviço de IA Gemini não disponível. Verifique a API Key em Configurações." });
+      }
+
+      const metaInstruction = `Você é um Especialista de Elite em Engenharia de Prompts para Agentes Virtuais de WhatsApp.
+Sua missão é criar ou aprimorar o Prompt do Atendente Virtual em português, deixando-o extremamente claro, estruturado e com alto poder de conversão.
+
+DADOS DO USUÁRIO:
+- Descrição do Negócio/Empresa: ${businessDescription || 'Empresa de atendimento e vendas'}
+- Objetivo: ${objective || 'Atender clientes, esclarecer dúvidas e fechar vendas no WhatsApp'}
+${currentPrompt ? `- Prompt Atual:\n${currentPrompt}` : ''}
+
+REGRAS FUNDAMENTAIS DO PROMPT GERADO:
+1. Definir a persona de forma simpática e profissional.
+2. Definir a regra de brevidade (respostas objetivas de no máximo 2 a 3 frases, estilo WhatsApp com emojis pontuais).
+3. Incluir instruções de conduta para dúvidas comuns, preços e incentivo à decisão de compra.
+4. Regra para transferir gentilmente para atendente humano se o cliente digitar "atendente" ou pedir um humano.
+5. Retorne APENAS o texto corrido do prompt em português. Não inclua mensagens introdutórias antes ou depois.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: metaInstruction,
+      });
+
+      const generatedPrompt = (result.text || "").trim();
+      res.json({ prompt: generatedPrompt });
+    } catch (error: any) {
+      console.error("[Assist Prompt Error]:", error);
+      res.status(500).json({ message: "Erro ao gerar prompt com Gemini: " + error.message });
+    }
+  });
+
   // ============ BROADCAST TEMPLATES ROUTES ============
 
   app.get('/api/broadcast-templates', isAuthenticated, async (req: any, res) => {
