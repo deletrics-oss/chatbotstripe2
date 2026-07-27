@@ -1773,6 +1773,18 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
       });
 
       const logic = await storage.createLogic(data);
+
+      // Save ia-prompt.txt if prompt or ai_sys_prompt is present
+      const logicJson = logic.logicJson as any;
+      const promptText = logicJson?.ai_sys_prompt || req.body.aiPrompt || logic.description;
+      if (promptText) {
+        const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
+        if (!fs.existsSync(logicDir)) {
+          fs.mkdirSync(logicDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(logicDir, 'ia-prompt.txt'), promptText);
+      }
+
       res.json(logic);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1820,6 +1832,18 @@ ${JSON.stringify(currentJson || { rules: [] }, null, 2)}
         ...req.body,
         isActive: true // Force active on update too
       });
+
+      // Update ia-prompt.txt if updated
+      const logicJson = updated.logicJson as any;
+      const promptText = logicJson?.ai_sys_prompt || req.body.aiPrompt || updated.description;
+      if (promptText) {
+        const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', updated.id);
+        if (!fs.existsSync(logicDir)) {
+          fs.mkdirSync(logicDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(logicDir, 'ia-prompt.txt'), promptText);
+      }
+
       res.json(updated);
     } catch (error) {
       console.error("Error updating logic:", error);
@@ -3359,10 +3383,6 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
 
       user = await storage.getUser(userId);
 
-      // Use user's API key if available, otherwise fall back to system key
-      const ai = await getAI(user?.geminiApiKey);
-      if (!ai) return res.status(503).json({ message: "AI service not configured" });
-
       // 1. Collect context from URL or text
       let context = "";
       if (sourceType === 'url' && sourceContent) {
@@ -3383,86 +3403,108 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
         } catch (e: any) {
           console.error("[AI Save] Scraping error:", e.message);
           if (browser) await browser.close().catch(() => { });
-          return res.status(400).json({
-            message: `Erro ao acessar o site: ${e.message}. Verifique se a URL está correta e acessível.`
-          });
         }
       } else if (sourceType === 'text') {
-        context = sourceContent;
+        context = sourceContent || "";
       }
 
-      // 2. Generate logic with AI
-      const systemPrompt = `Você é um Arquiteto de Chatbots Especialista em Vendas.
-        
-        CONTEXTO DO NEGÓCIO (Site/Texto):
-        ${context ? context.slice(0, 10000) : "Nenhum contexto fornecido."}
-        
-        SOLICITAÇÃO DO USUÁRIO: ${prompt}
-        
-        SUA MISSÃO: 
-        Criar uma configuração de "Atendente Inteligente" (Pure AI) que seja direto ao ponto, venda o produto e use as informações do contexto.
-        
-        REGRAS DE OURO PARA A PERSONA (ai_sys_prompt):
-        1. **BREVIDADE EXTREMA:** O atendente deve ser rápido. Não use parágrafos longos. Responda como se estivesse no WhatsApp.
-        2. **FOCO EM VENDAS:** Se o usuário quer gás, venda o gás. Use os preços e telefones encontrados no contexto.
-        3. **DIRETO AO PONTO:** Não dê boas-vindas longas. Responda à pergunta do cliente com o que ele precisa.
-        4. **CONFIABILIDADE:** Use apenas dados do contexto (preços, horários). Se não souber, peça para falar com um humano.
-        
-        INTERFACE OBRIGATÓRIA (JSON):
-        {
-          "default_reply": "Olá! Sou o assistente da [Empresa]. Como posso ajudar?",
-          "fallback_to_ai": true,
-          "ai_sys_prompt": "[COLOQUE A PERSONA DETALHADA AQUI - Use as Regras de Ouro]",
-          "rules": [] // Mantenha vazio ou com regras básicas se necessário, mas o foco é no ai_sys_prompt
+      let logicJson: any = null;
+
+      // 2. Try generating logic with AI
+      try {
+        const ai = await getAI(user?.geminiApiKey);
+        if (ai) {
+          const systemPrompt = `Você é um Arquiteto de Chatbots Especialista em Vendas.
+          
+          CONTEXTO DO NEGÓCIO (Site/Texto):
+          ${context ? context.slice(0, 10000) : "Nenhum contexto fornecido."}
+          
+          SOLICITAÇÃO DO USUÁRIO: ${prompt}
+          
+          SUA MISSÃO: 
+          Criar uma configuração de "Atendente Inteligente" (Pure AI) que seja direto ao ponto, venda o produto e use as informações do contexto.
+          
+          REGRAS DE OURO PARA A PERSONA (ai_sys_prompt):
+          1. **BREVIDADE EXTREMA:** O atendente deve ser rápido. Não use parágrafos longos. Responda como se estivesse no WhatsApp.
+          2. **INFORMAÇÕES E PREÇOS:** Use os preços e produtos fornecidos no contexto.
+          3. **DIRETO AO PONTO:** Responda às perguntas do cliente com cortesia e agilidade.
+          
+          INTERFACE OBRIGATÓRIA (JSON):
+          {
+            "default_reply": "Olá! Seja bem-vindo(a)! Como posso ajudar você hoje?",
+            "fallback_to_ai": true,
+            "ai_sys_prompt": "[COLOQUE A PERSONA DETALHADA AQUI]",
+            "rules": []
+          }
+
+          Responda APENAS com o JSON válido.
+        `;
+
+          const result = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            config: {
+              systemInstruction: systemPrompt,
+              responseMimeType: "application/json",
+            },
+            contents: "Gere a configuração do Atendente Inteligente em JSON.",
+          });
+
+          const jsonStr = (result.text || "").replace(/```json/g, '').replace(/```/g, '').trim();
+          logicJson = JSON.parse(jsonStr);
         }
+      } catch (aiErr: any) {
+        console.warn("[AI Save] Gemini model call failed, creating logic directly from context:", aiErr?.message);
+        invalidateAIKey(user?.geminiApiKey);
+      }
 
-        Responda APENAS com o JSON válido.
-      `;
+      // If AI generation failed or wasn't available, construct direct persona prompt
+      if (!logicJson || !logicJson.ai_sys_prompt) {
+        const directPrompt = `Você é um assistente virtual atencioso e especialista em vendas para o negócio.
 
-      const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        config: {
-          systemInstruction: systemPrompt,
-          responseMimeType: "application/json",
-        },
-        contents: "Gere a configuração do Atendente Inteligente em JSON.",
-      });
+${prompt ? 'INSTRUÇÕES DE ATENDIMENTO:\n' + prompt + '\n' : ''}
+${context ? 'INFORMAÇÕES GERAIS, CATÁLOGO DE PREÇOS E FLUXO DA EMPRESA:\n' + context + '\n' : ''}
 
-      const jsonStr = (result.text || "").replace(/```json/g, '').replace(/```/g, '').trim();
-      const logicJson = JSON.parse(jsonStr);
+REGRAS OBRIGATÓRIAS:
+1. Responda sempre de forma gentil, direta e muito breve (máximo 2-3 frases, tom de WhatsApp).
+2. Utilize rigorosamente os preços, produtos e opções do catálogo fornecido.
+3. Caso o cliente peça atendente humano, informe gentilmente que irá transferir para a equipe humana.`;
 
-      // Ensure fallback_to_ai is always true for this AI generation
+        logicJson = {
+          default_reply: "Olá! Seja bem-vindo(a)! Como posso te ajudar hoje?",
+          fallback_to_ai: true,
+          ai_sys_prompt: directPrompt,
+          rules: []
+        };
+      }
+
       logicJson.fallback_to_ai = true;
 
       // 3. Save the generated logic
       const newLogic = await storage.createLogic({
-        name: logicName,
-        description: `IA Salesperson: ${prompt.slice(0, 50)}...`,
+        name: logicName || "Atendimento Inteligente",
+        description: prompt ? prompt.slice(0, 100) : (context ? context.slice(0, 100) : "Lógica Inteligente"),
         logicJson,
         logicType: 'ai', // Set to AI for Pure AI logic execution
         isActive: true,
         userId,
       });
 
-      // 4. Save site context for AI fallback
+      // 4. Save ia-prompt.txt and site-context.txt for AI logic execution
+      const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', newLogic.id);
+      if (!fs.existsSync(logicDir)) {
+        fs.mkdirSync(logicDir, { recursive: true });
+      }
+      if (logicJson.ai_sys_prompt) {
+        fs.writeFileSync(path.join(logicDir, 'ia-prompt.txt'), logicJson.ai_sys_prompt);
+      }
       if (context) {
-        const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', newLogic.id);
-        if (!fs.existsSync(logicDir)) {
-          fs.mkdirSync(logicDir, { recursive: true });
-        }
         fs.writeFileSync(path.join(logicDir, 'site-context.txt'), context);
       }
 
       res.json(newLogic);
     } catch (error: any) {
       console.error("Generate and Save error:", error);
-      invalidateAIKey(user?.geminiApiKey);
-      const isApiKeyErr = error?.message?.includes("API key") || error?.status === 400;
-      res.status(isApiKeyErr ? 400 : 500).json({
-        message: isApiKeyErr
-          ? "A Chave API do Gemini é inválida ou não foi configurada. Acesse Configurações para salvar uma API Key válida."
-          : "Erro ao gerar e salvar lógica. Verifique as configurações de API Key."
-      });
+      res.status(500).json({ message: "Erro ao salvar a lógica: " + (error?.message || "Erro desconhecido") });
     }
   });
 

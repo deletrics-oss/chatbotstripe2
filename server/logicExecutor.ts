@@ -52,7 +52,7 @@ export function executeLogic(
   if (!logicJson || typeof logicJson !== 'object') {
     console.error('[LogicExecutor] Invalid logicJson: not an object', logicJson);
     return {
-      reply: "Erro: Lógica inválida configurada.",
+      reply: "Olá! Seja bem-vindo(a)! Como posso te ajudar hoje?",
       shouldPause: false,
     };
   }

@@ -457,7 +457,7 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
       try {
         // Load system prompt from file if available
         const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
-        let systemInstruction = "Você é um assistente virtual útil.";
+        let systemInstruction = "";
         let loadedFrom = "default";
 
         if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
@@ -466,6 +466,21 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
         } else if (logicJsonProp?.ai_sys_prompt) {
           systemInstruction = logicJsonProp.ai_sys_prompt;
           loadedFrom = "JSON (ai_sys_prompt)";
+        } else if (logic.description) {
+          systemInstruction = logic.description;
+          loadedFrom = "logic.description";
+        }
+
+        if (!systemInstruction || systemInstruction.trim().length < 10) {
+          systemInstruction = "Você é um assistente virtual atencioso e útil no WhatsApp. Responda brevemente e educadamente.";
+        }
+
+        // Check if site-context.txt exists and append it
+        if (fs.existsSync(path.join(logicDir, 'site-context.txt'))) {
+          const siteContext = fs.readFileSync(path.join(logicDir, 'site-context.txt'), 'utf8');
+          if (siteContext && !systemInstruction.includes(siteContext.slice(0, 50))) {
+            systemInstruction += `\n\nCONTEXTO DO NEGÓCIO E CATÁLOGO:\n${siteContext}`;
+          }
         }
 
         console.log(`[Bot] 📝 Instruction loaded from ${loadedFrom}. Length: ${systemInstruction.length}`);
