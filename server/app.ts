@@ -81,9 +81,8 @@ export default async function runApp(
   // the catch-all route doesn't interfere with the other routes
   await setup(app, server);
 
-  // Serve the app on the port specified in the environment variable PORT
-  // Priority: process.env.PORT > 3025
-  const port = parseInt(process.env.PORT || '3025', 10);
+  // Serve the app on port 3000 required by container infrastructure
+  const port = parseInt(process.env.PORT || '3000', 10);
 
   log(`Tentando iniciar servidor na porta ${port}...`, "express");
 
