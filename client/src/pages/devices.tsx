@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson, RotateCw, Activity } from "lucide-react";
+import { Plus, Smartphone, Wifi, WifiOff, Trash2, RefreshCw, Pause, Play, FileJson, RotateCw, Activity, Cloud } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,8 @@ function EvolutionStatusBadge() {
 
   return (
     <Badge variant="outline" className="gap-1 h-5 text-[10px] bg-green-500/10 text-green-600 border-green-200">
-      <Activity className="w-3 h-3" /> API Online (v{status.version})
+      <Cloud className="w-3 h-3 text-blue-500" />
+      <Activity className="w-3 h-3" /> Cloud Evolution API (v{status.version})
     </Badge>
   );
 }

@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { logSystemEvent } from "./logManager";
-import { getAI } from "./ai";
+import { getAI, invalidateAIKey } from "./ai";
 import { classifySDRIntent, generateSDRResponse, type SDRConfig } from "./aiService";
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
@@ -437,76 +437,88 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
   if (!logic.isActive) { console.log(`[Bot] ❌ Logic ${logic.id} is NOT active (isActive=false)`); return; }
   // Check logicType before validating logicJson for AI types
   if (logic.logicType === 'ai' || logic.logicType === 'hybrid' || logic.logicType === 'sdr') {
-    // Basic validation for hybrid/ai - prompts are stored in file, so logicJson might be empty
+    const user = await storage.getUser(logic.userId);
+    const userApiKey = user?.geminiApiKey;
+
     // We proceed to AI execution directly if it's 'ai' type
     if (logic.logicType === 'ai') {
       console.log(`[Bot] 🤖 Executing Pure AI Logic: "${logic.name}"`);
-      const ai = getAI();
-      if (ai) {
-        try {
-          // Load system prompt from file if available
-          const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
-          let systemInstruction = "Você é um assistente virtual útil.";
-          let loadedFrom = "default";
+      const ai = getAI(userApiKey);
+      const logicJsonProp = (logic.logicJson as any) || {};
 
-          const logicJsonProp = logic.logicJson as any;
+      if (!ai) {
+        console.warn(`[Bot] ⚠️ No AI instance available for user ${logic.userId} (Key missing or invalid). Using fallback.`);
+        const fallbackReply = logicJsonProp.default_reply || "Olá! Não foi possível processar a resposta por IA neste momento. Por favor, verifique a chave de API nas configurações.";
+        await sendWhatsAppMessage(deviceId, contactNumber, fallbackReply);
+        await saveMessageToDb(deviceId, contactNumber, fallbackReply, 'outgoing', true);
+        return;
+      }
 
-          if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
-            systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
-            loadedFrom = "file (ia-prompt.txt)";
-          } else if (logicJsonProp?.ai_sys_prompt) {
-            systemInstruction = logicJsonProp.ai_sys_prompt;
-            loadedFrom = "JSON (ai_sys_prompt)";
-          }
+      try {
+        // Load system prompt from file if available
+        const logicDir = path.join(process.cwd(), 'server', 'data', 'logics', logic.id);
+        let systemInstruction = "Você é um assistente virtual útil.";
+        let loadedFrom = "default";
 
-          console.log(`[Bot] 📝 Instruction loaded from ${loadedFrom}. Length: ${systemInstruction.length}`);
-          if (systemInstruction.length < 50) {
-            console.log(`[Bot] ⚠️ Warning: Instruction seems too short. Logic props:`, Object.keys(logicJsonProp || {}));
-          }
-
-          // Fetch Knowledge Base items to enrich AI context
-          try {
-            const knowledgeItems = await storage.getKnowledgeBase(logic.userId);
-            const activeKnowledge = (knowledgeItems as any[]).filter(k => k.isActive);
-            if (activeKnowledge.length > 0) {
-              console.log(`[Bot] 📚 Adding ${activeKnowledge.length} knowledge items to context`);
-              systemInstruction += `\n\nCONHECIMENTO ADICIONAL:\n`;
-              activeKnowledge.forEach((item: any) => {
-                systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
-              });
-            }
-          } catch (kbErr) {
-            console.error(`[Bot] ⚠️ Error fetching knowledge base for AI:`, kbErr);
-          }
-
-          // Execute Gemini with a safety instruction for brevity
-          const request: any = {
-            model: "gemini-2.0-flash",
-            config: {
-              systemInstruction: {
-                parts: [{ text: systemInstruction + "\n\nIMPORTANTE: Seja extremamente breve e direto. Responda como se estivesse no WhatsApp. Use no máximo 2-3 frases." }]
-              }
-            },
-            contents: [{ role: "user", parts: [{ text: messageBody }] }]
-          };
-
-          console.log(`[Bot] 🧠 Sending AI request with systemInstruction (length: ${systemInstruction.length})`);
-          const aiResult = await ai.models.generateContent(request);
-          const aiReply = aiResult.text || "";
-
-          console.log(`[Bot] 🤖 AI replied: "${aiReply.substring(0, 80)}"`);
-          await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
-          await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
-          return;
-        } catch (err) {
-          console.error(`[Bot] ❌ AI Execution failed:`, err);
-          // Fallback to error message
+        if (fs.existsSync(path.join(logicDir, 'ia-prompt.txt'))) {
+          systemInstruction = fs.readFileSync(path.join(logicDir, 'ia-prompt.txt'), 'utf8');
+          loadedFrom = "file (ia-prompt.txt)";
+        } else if (logicJsonProp?.ai_sys_prompt) {
+          systemInstruction = logicJsonProp.ai_sys_prompt;
+          loadedFrom = "JSON (ai_sys_prompt)";
         }
+
+        console.log(`[Bot] 📝 Instruction loaded from ${loadedFrom}. Length: ${systemInstruction.length}`);
+        if (systemInstruction.length < 50) {
+          console.log(`[Bot] ⚠️ Warning: Instruction seems too short. Logic props:`, Object.keys(logicJsonProp || {}));
+        }
+
+        // Fetch Knowledge Base items to enrich AI context
+        try {
+          const knowledgeItems = await storage.getKnowledgeBase(logic.userId);
+          const activeKnowledge = (knowledgeItems as any[]).filter(k => k.isActive);
+          if (activeKnowledge.length > 0) {
+            console.log(`[Bot] 📚 Adding ${activeKnowledge.length} knowledge items to context`);
+            systemInstruction += `\n\nCONHECIMENTO ADICIONAL:\n`;
+            activeKnowledge.forEach((item: any) => {
+              systemInstruction += `\n--- ${item.title} ---\n${item.content}\n`;
+            });
+          }
+        } catch (kbErr) {
+          console.error(`[Bot] ⚠️ Error fetching knowledge base for AI:`, kbErr);
+        }
+
+        // Execute Gemini with a safety instruction for brevity
+        const request: any = {
+          model: "gemini-2.0-flash",
+          config: {
+            systemInstruction: {
+              parts: [{ text: systemInstruction + "\n\nIMPORTANTE: Seja extremamente breve e direto. Responda como se estivesse no WhatsApp. Use no máximo 2-3 frases." }]
+            }
+          },
+          contents: [{ role: "user", parts: [{ text: messageBody }] }]
+        };
+
+        console.log(`[Bot] 🧠 Sending AI request with systemInstruction (length: ${systemInstruction.length})`);
+        const aiResult = await ai.models.generateContent(request);
+        const aiReply = aiResult.text || "";
+
+        console.log(`[Bot] 🤖 AI replied: "${aiReply.substring(0, 80)}"`);
+        await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
+        await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
+        return;
+      } catch (err) {
+        console.error(`[Bot] ❌ AI Execution failed:`, err);
+        invalidateAIKey(userApiKey);
+        const fallbackReply = logicJsonProp.default_reply || "Olá! Tive uma falha temporária ao gerar a resposta de IA. Por favor, tente novamente em instantes.";
+        await sendWhatsAppMessage(deviceId, contactNumber, fallbackReply);
+        await saveMessageToDb(deviceId, contactNumber, fallbackReply, 'outgoing', true);
+        return;
       }
     } else if (logic.logicType === 'sdr') {
       console.log(`[Bot] 🤖 Executing Humanized SDR Logic: "${logic.name}"`);
+      const logicJsonProp = (logic.logicJson as any) || {};
       try {
-        const user = await storage.getUser(logic.userId);
         const conversations = await storage.getConversations(deviceId);
         let conversation = conversations.find(c => c.contactPhone === contactNumber);
 
@@ -527,7 +539,7 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
           content: m.content
         }));
 
-        const sdrConfig: SDRConfig = (logic.logicJson as any) || {
+        const sdrConfig: SDRConfig = logicJsonProp || {
           product: logic.description || "nossos serviços",
           tone: 'professional',
           includeEmoji: true
@@ -539,7 +551,7 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
           recentMessages,
           messageBody,
           sdrConfig.product,
-          user?.geminiApiKey
+          userApiKey
         );
 
         console.log(`[Bot] 🧠 SDR Intent: ${classification.intent} (${classification.confidence})`);
@@ -551,7 +563,7 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
           messageBody,
           sdrConfig,
           classification.intent,
-          user?.geminiApiKey
+          userApiKey
         );
 
         console.log(`[Bot] 🤖 SDR replied: "${aiReply.substring(0, 80)}"`);
@@ -560,6 +572,11 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
         return;
       } catch (err) {
         console.error(`[Bot] ❌ SDR Execution failed:`, err);
+        invalidateAIKey(userApiKey);
+        const fallbackReply = logicJsonProp.default_reply || "Olá! Tive uma falha no processamento. Por favor, tente novamente em instantes.";
+        await sendWhatsAppMessage(deviceId, contactNumber, fallbackReply);
+        await saveMessageToDb(deviceId, contactNumber, fallbackReply, 'outgoing', true);
+        return;
       }
     }
   }
@@ -572,25 +589,31 @@ export async function processIncomingMessage(deviceId: string, contactNumber: st
 
   if (result.reply === "Desculpe, não entendi sua mensagem." && (logic.logicJson as any).fallback_to_ai) {
     console.log(`[Bot] 🤖 Falling back to AI (Gemini)`);
-    const ai = getAI();
+    const user = await storage.getUser(logic.userId);
+    const ai = getAI(user?.geminiApiKey);
     if (ai) {
-      const logicJsonProp = logic.logicJson as any;
-      let systemInstruction = logicJsonProp.ai_sys_prompt || "Você é um assistente virtual útil.";
+      try {
+        const logicJsonProp = logic.logicJson as any;
+        let systemInstruction = logicJsonProp.ai_sys_prompt || "Você é um assistente virtual útil.";
 
-      const aiResult = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        config: {
-          systemInstruction: {
-            parts: [{ text: systemInstruction + "\n\nIMPORTANTE: Seja extremamente breve e direto. Responda como se estivesse no WhatsApp. Use no máximo 2-3 frases." }]
-          }
-        },
-        contents: [{ role: "user", parts: [{ text: messageBody }] }]
-      });
-      const aiReply = aiResult.text || "";
-      console.log(`[Bot] 🤖 AI Fallback replied: "${aiReply.substring(0, 80)}"`);
-      await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
-      await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
-      return;
+        const aiResult = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          config: {
+            systemInstruction: {
+              parts: [{ text: systemInstruction + "\n\nIMPORTANTE: Seja extremamente breve e direto. Responda como se estivesse no WhatsApp. Use no máximo 2-3 frases." }]
+            }
+          },
+          contents: [{ role: "user", parts: [{ text: messageBody }] }]
+        });
+        const aiReply = aiResult.text || "";
+        console.log(`[Bot] 🤖 AI Fallback replied: "${aiReply.substring(0, 80)}"`);
+        await sendWhatsAppMessage(deviceId, contactNumber, aiReply);
+        await saveMessageToDb(deviceId, contactNumber, `[IA] ${aiReply}`, 'outgoing', true);
+        return;
+      } catch (fallbackErr) {
+        console.error(`[Bot] ❌ AI Fallback failed:`, fallbackErr);
+        invalidateAIKey(user?.geminiApiKey);
+      }
     }
   }
 

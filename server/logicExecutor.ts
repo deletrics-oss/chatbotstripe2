@@ -59,9 +59,9 @@ export function executeLogic(
 
   // Ensure rules is an array
   if (!Array.isArray(logicJson.rules)) {
-    console.error('[LogicExecutor] Invalid logicJson.rules: not an array', logicJson);
+    console.warn('[LogicExecutor] logicJson.rules is not an array, using default reply or fallback', logicJson);
     return {
-      reply: logicJson.default_reply || "Erro: Lógica mal configurada.",
+      reply: logicJson.default_reply || "Olá! Como posso te ajudar?",
       shouldPause: logicJson.pause_bot_after_reply ?? false,
     };
   }

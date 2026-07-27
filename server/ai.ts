@@ -10,13 +10,14 @@ const userAiInstances = new Map<string, GoogleGenAI>();
  */
 export function getAI(userApiKey?: string | null): GoogleGenAI | null {
     // 1. User-specific Key Preference
-    if (userApiKey && userApiKey.trim() !== "") {
-        if (userAiInstances.has(userApiKey)) {
-            return userAiInstances.get(userApiKey)!;
+    if (userApiKey && userApiKey.trim() !== "" && userApiKey !== "undefined") {
+        const cleanKey = userApiKey.trim();
+        if (userAiInstances.has(cleanKey)) {
+            return userAiInstances.get(cleanKey)!;
         }
-        console.log(`[AI] Initializing new Gemini instance for custom user key (length: ${userApiKey.length})`);
-        const userAi = new GoogleGenAI({ apiKey: userApiKey });
-        userAiInstances.set(userApiKey, userAi);
+        console.log(`[AI] Initializing new Gemini instance for custom user key (length: ${cleanKey.length})`);
+        const userAi = new GoogleGenAI({ apiKey: cleanKey });
+        userAiInstances.set(cleanKey, userAi);
         return userAi;
     }
 
@@ -24,9 +25,9 @@ export function getAI(userApiKey?: string | null): GoogleGenAI | null {
     if (systemAiInstance) return systemAiInstance;
 
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (geminiKey && geminiKey.trim() !== "" && geminiKey !== "undefined") {
-        console.log(`[AI] Initializing system-wide Gemini instance (length: ${geminiKey.length})`);
-        systemAiInstance = new GoogleGenAI({ apiKey: geminiKey });
+    if (geminiKey && geminiKey.trim() !== "" && geminiKey !== "undefined" && geminiKey !== "MY_GEMINI_API_KEY") {
+        console.log(`[AI] Initializing system-wide Gemini instance (length: ${geminiKey.trim().length})`);
+        systemAiInstance = new GoogleGenAI({ apiKey: geminiKey.trim() });
         return systemAiInstance;
     }
 
@@ -34,8 +35,22 @@ export function getAI(userApiKey?: string | null): GoogleGenAI | null {
     return null;
 }
 
+/**
+ * Invalidate a cached AI instance if key was invalid or rejected by API
+ */
+export function invalidateAIKey(userApiKey?: string | null) {
+    if (userApiKey && userAiInstances.has(userApiKey)) {
+        console.log(`[AI] Invalidation requested for custom user key. Removing cached instance.`);
+        userAiInstances.delete(userApiKey);
+    } else {
+        console.log(`[AI] Invalidation requested for system AI instance. Resetting.`);
+        systemAiInstance = null;
+    }
+}
+
 export function resetAI() {
     console.log('[AI] Resetting AI instances...');
     systemAiInstance = null;
     userAiInstances.clear();
 }
+

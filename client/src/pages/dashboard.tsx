@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Activity, Zap, Wifi, WifiOff } from "lucide-react";
+import { MessageSquare, Activity, Zap, Wifi, WifiOff, Cloud, Server } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { WhatsappDevice } from "@shared/schema";
 
@@ -23,9 +23,16 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Dashboard de Gerenciamento</h1>
-        <p className="text-muted-foreground mt-1">Visão geral do sistema</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold" data-testid="text-page-title">Dashboard de Gerenciamento</h1>
+            <Badge variant="outline" className="gap-1.5 py-1 px-3 bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800 dark:text-blue-400">
+              <Cloud className="w-4 h-4" /> Cloud Online
+            </Badge>
+          </div>
+          <p className="text-muted-foreground mt-1">Visão geral e status do servidor VPS Cloud</p>
+        </div>
       </div>
 
       {/* Metrics Cards */}

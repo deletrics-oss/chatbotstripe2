@@ -19,7 +19,7 @@ import puppeteer from "puppeteer";
 import { LOGIC_TEMPLATES } from "./templates";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
-import { getAI, resetAI } from "./ai";
+import { getAI, resetAI, invalidateAIKey } from "./ai";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -3339,18 +3339,25 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       const logicJson = JSON.parse(jsonStr);
 
       res.json({ logicJson }); // Wrap in logicJson object to match frontend expectation
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Logic Edit error:", error);
-      res.status(500).json({ message: "Failed to edit logic" });
+      invalidateAIKey(user?.geminiApiKey);
+      const isApiKeyErr = error?.message?.includes("API key") || error?.status === 400;
+      res.status(isApiKeyErr ? 400 : 500).json({
+        message: isApiKeyErr
+          ? "A Chave API do Gemini é inválida ou não foi configurada. Acesse Configurações para salvar uma API Key válida."
+          : "Erro ao editar lógica com IA. Verifique as configurações de API Key."
+      });
     }
   });
 
   app.post('/api/ai/generate-and-save-logic', isAuthenticated, async (req: any, res) => {
+    let user: any;
     try {
       const { prompt, logicName, sourceType, sourceContent, useEmojis } = req.body;
       const userId = req.user.id;
 
-      const user = await storage.getUser(userId);
+      user = await storage.getUser(userId);
 
       // Use user's API key if available, otherwise fall back to system key
       const ai = await getAI(user?.geminiApiKey);
@@ -3447,9 +3454,15 @@ Responda APENAS com a mensagem, sem aspas ou formatação extra.`;
       }
 
       res.json(newLogic);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Generate and Save error:", error);
-      res.status(500).json({ message: "Failed to generate and save logic" });
+      invalidateAIKey(user?.geminiApiKey);
+      const isApiKeyErr = error?.message?.includes("API key") || error?.status === 400;
+      res.status(isApiKeyErr ? 400 : 500).json({
+        message: isApiKeyErr
+          ? "A Chave API do Gemini é inválida ou não foi configurada. Acesse Configurações para salvar uma API Key válida."
+          : "Erro ao gerar e salvar lógica. Verifique as configurações de API Key."
+      });
     }
   });
 
